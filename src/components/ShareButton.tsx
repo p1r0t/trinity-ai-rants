@@ -24,7 +24,9 @@ const ShareButton = ({ title, url, text }: ShareButtonProps) => {
           url: shareUrl,
         });
       } catch (error) {
+        // Fallback to custom share menu if native sharing fails
         console.error('Error sharing:', error);
+        setIsOpen(!isOpen);
       }
     } else {
       setIsOpen(!isOpen);
