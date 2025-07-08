@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       articles: {
         Row: {
+          audio_url: string | null
           author: string | null
           content: string
           created_at: string
@@ -32,6 +33,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audio_url?: string | null
           author?: string | null
           content: string
           created_at?: string
@@ -48,6 +50,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audio_url?: string | null
           author?: string | null
           content?: string
           created_at?: string
@@ -145,6 +148,38 @@ export type Database = {
         }
         Relationships: []
       }
+      reactions: {
+        Row: {
+          article_id: string
+          created_at: string
+          id: string
+          reaction_type: string
+          user_id: string | null
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          id?: string
+          reaction_type: string
+          user_id?: string | null
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          id?: string
+          reaction_type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reactions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscribers: {
         Row: {
           created_at: string
@@ -207,7 +242,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_article_reaction_counts: {
+        Args: { article_uuid: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
