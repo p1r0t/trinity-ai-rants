@@ -61,10 +61,35 @@ const Admin = () => {
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [isGenerating, setIsGenerating] = useState({ tldr: false, audio: false });
+  const [isCreatingArticle, setIsCreatingArticle] = useState(false);
+  const [newArticle, setNewArticle] = useState({
+    title: '',
+    content: '',
+    author: '',
+    summary: '',
+    original_url: '',
+    published_at: new Date().toISOString().slice(0, 16)
+  });
   
   // News Sources
   const [sources, setSources] = useState<NewsSource[]>([]);
   const [newSource, setNewSource] = useState({ name: '', url: '', source_type: 'rss' });
+
+  // Users
+  const [users, setUsers] = useState<any[]>([]);
+  
+  // Settings
+  const [settings, setSettings] = useState<any[]>([]);
+  const [newSetting, setNewSetting] = useState({ key: '', value: '', description: '' });
+  
+  // Stats
+  const [stats, setStats] = useState({
+    totalArticles: 0,
+    publishedArticles: 0,
+    totalUsers: 0,
+    totalReactions: 0,
+    activeSources: 0
+  });
 
   useEffect(() => {
     checkAuth();
@@ -114,6 +139,12 @@ const Admin = () => {
       await loadArticles();
     } else if (activeTab === 'sources') {
       await loadSources();
+    } else if (activeTab === 'users') {
+      await loadUsers();
+    } else if (activeTab === 'settings') {
+      await loadSettings();
+    } else if (activeTab === 'stats') {
+      await loadStats();
     }
   };
 
@@ -142,6 +173,65 @@ const Admin = () => {
       setSources(data || []);
     } catch (error) {
       console.error('Error loading sources:', error);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
+
+  const loadSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('*')
+        .order('key');
+      
+      if (error) throw error;
+      setSettings(data || []);
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      const [articlesRes, usersRes, reactionsRes, sourcesRes] = await Promise.all([
+        supabase.from('articles').select('*', { count: 'exact' }),
+        supabase.from('profiles').select('*', { count: 'exact' }),
+        supabase.from('reactions').select('*', { count: 'exact' }),
+        supabase.from('news_sources').select('*', { count: 'exact' })
+      ]);
+
+      const publishedArticles = await supabase
+        .from('articles')
+        .select('*', { count: 'exact' })
+        .eq('processed', true);
+
+      const activeSources = await supabase
+        .from('news_sources')
+        .select('*', { count: 'exact' })
+        .eq('is_active', true);
+
+      setStats({
+        totalArticles: articlesRes.count || 0,
+        publishedArticles: publishedArticles.count || 0,
+        totalUsers: usersRes.count || 0,
+        totalReactions: reactionsRes.count || 0,
+        activeSources: activeSources.count || 0
+      });
+    } catch (error) {
+      console.error('Error loading stats:', error);
     }
   };
 
@@ -310,6 +400,141 @@ const Admin = () => {
     }
   };
 
+  const createArticle = async () => {
+    if (!newArticle.title || !newArticle.content || !newArticle.original_url) {
+      toast({
+        title: "Ошибка",
+        description: "Заполните обязательные поля",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('articles')
+        .insert([{
+          ...newArticle,
+          published_at: new Date(newArticle.published_at).toISOString()
+        }]);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Успешно",
+        description: "Статья создана",
+      });
+      
+      setNewArticle({
+        title: '',
+        content: '',
+        author: '',
+        summary: '',
+        original_url: '',
+        published_at: new Date().toISOString().slice(0, 16)
+      });
+      setIsCreatingArticle(false);
+      loadArticles();
+    } catch (error) {
+      console.error('Error creating article:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось создать статью",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateUserRole = async (userId: string, newRole: 'admin' | 'user') => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('user_id', userId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Успешно",
+        description: "Роль пользователя обновлена",
+      });
+      
+      loadUsers();
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось обновить роль",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addSetting = async () => {
+    if (!newSetting.key || !newSetting.value) {
+      toast({
+        title: "Ошибка",
+        description: "Заполните ключ и значение",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('system_settings')
+        .insert([{
+          key: newSetting.key,
+          value: JSON.parse(newSetting.value),
+          description: newSetting.description
+        }]);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Успешно",
+        description: "Настройка добавлена",
+      });
+      
+      setNewSetting({ key: '', value: '', description: '' });
+      loadSettings();
+    } catch (error) {
+      console.error('Error adding setting:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось добавить настройку",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteSetting = async (id: string) => {
+    if (!confirm('Удалить настройку?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('system_settings')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Успешно",
+        description: "Настройка удалена",
+      });
+      
+      loadSettings();
+    } catch (error) {
+      console.error('Error deleting setting:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить настройку",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
@@ -392,7 +617,11 @@ const Admin = () => {
                   <CardHeader>
                     <CardTitle className="text-white flex items-center justify-between">
                       Статьи ({articles.length})
-                      <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                      <Button 
+                        size="sm" 
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => setIsCreatingArticle(true)}
+                      >
                         <Plus size={14} />
                       </Button>
                     </CardTitle>
@@ -647,15 +876,242 @@ const Admin = () => {
             </div>
           )}
 
-          {/* Other tabs placeholder */}
-          {['users', 'stats', 'settings'].includes(activeTab) && (
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold text-white mb-4">
-                {activeTab === 'users' && 'Управление пользователями'}
-                {activeTab === 'stats' && 'Статистика сайта'}
-                {activeTab === 'settings' && 'Настройки системы'}
-              </h2>
-              <p className="text-gray-400">Раздел в разработке</p>
+          {/* Users Tab */}
+          {activeTab === 'users' && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-white">Управление пользователями</h2>
+              
+              <div className="grid gap-4">
+                {users.map((user) => (
+                  <Card key={user.id} className="bg-black/40 border-purple-500/30">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-white font-medium">{user.email}</h3>
+                          <p className="text-gray-400 text-sm">
+                            Зарегистрирован: {new Date(user.created_at).toLocaleDateString('ru-RU')}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <Badge variant={user.role === 'admin' ? 'default' : 'outline'}>
+                            {user.role === 'admin' ? 'Администратор' : 'Пользователь'}
+                          </Badge>
+                          <select
+                            value={user.role}
+                            onChange={(e) => updateUserRole(user.user_id, e.target.value as 'admin' | 'user')}
+                            className="bg-black/20 border border-purple-500/30 text-white rounded-md px-3 py-1 text-sm"
+                          >
+                            <option value="user">Пользователь</option>
+                            <option value="admin">Администратор</option>
+                          </select>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Stats Tab */}
+          {activeTab === 'stats' && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-white">Статистика сайта</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <Card className="bg-black/40 border-purple-500/30">
+                  <CardContent className="p-6">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-orange-400 mb-2">{stats.totalArticles}</div>
+                      <div className="text-sm text-gray-400">Всего статей</div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-black/40 border-purple-500/30">
+                  <CardContent className="p-6">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-green-400 mb-2">{stats.publishedArticles}</div>
+                      <div className="text-sm text-gray-400">Опубликованных</div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-black/40 border-purple-500/30">
+                  <CardContent className="p-6">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-blue-400 mb-2">{stats.totalUsers}</div>
+                      <div className="text-sm text-gray-400">Пользователей</div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-black/40 border-purple-500/30">
+                  <CardContent className="p-6">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-purple-400 mb-2">{stats.totalReactions}</div>
+                      <div className="text-sm text-gray-400">Реакций</div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-black/40 border-purple-500/30">
+                  <CardContent className="p-6">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-yellow-400 mb-2">{stats.activeSources}</div>
+                      <div className="text-sm text-gray-400">Активных источников</div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {/* Settings Tab */}
+          {activeTab === 'settings' && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-white">Настройки системы</h2>
+              
+              {/* Add New Setting */}
+              <Card className="bg-black/40 border-purple-500/30">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center">
+                    <Plus size={20} className="mr-2" />
+                    Добавить настройку
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Input
+                      placeholder="Ключ"
+                      value={newSetting.key}
+                      onChange={(e) => setNewSetting({ ...newSetting, key: e.target.value })}
+                      className="bg-black/20 border-purple-500/30 text-white"
+                    />
+                    <Input
+                      placeholder="Значение (JSON)"
+                      value={newSetting.value}
+                      onChange={(e) => setNewSetting({ ...newSetting, value: e.target.value })}
+                      className="bg-black/20 border-purple-500/30 text-white"
+                    />
+                    <Input
+                      placeholder="Описание"
+                      value={newSetting.description}
+                      onChange={(e) => setNewSetting({ ...newSetting, description: e.target.value })}
+                      className="bg-black/20 border-purple-500/30 text-white"
+                    />
+                    <Button onClick={addSetting} className="bg-green-600 hover:bg-green-700">
+                      Добавить
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Settings List */}
+              <div className="grid gap-4">
+                {settings.map((setting) => (
+                  <Card key={setting.id} className="bg-black/40 border-purple-500/30">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-white font-medium">{setting.key}</h3>
+                          <p className="text-gray-400 text-sm">{setting.description}</p>
+                          <code className="text-xs text-green-400 mt-1 block">
+                            {JSON.stringify(setting.value)}
+                          </code>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => deleteSetting(setting.id)}
+                            className="border-red-500/50 text-red-300"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Create Article Modal */}
+          {isCreatingArticle && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <Card className="bg-black/90 border-purple-500/30 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center justify-between">
+                    Создать новую статью
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsCreatingArticle(false)}
+                      className="text-gray-400 hover:text-white"
+                    >
+                      ✕
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Input
+                    placeholder="Заголовок *"
+                    value={newArticle.title}
+                    onChange={(e) => setNewArticle({ ...newArticle, title: e.target.value })}
+                    className="bg-black/20 border-purple-500/30 text-white"
+                  />
+                  <Input
+                    placeholder="Автор"
+                    value={newArticle.author}
+                    onChange={(e) => setNewArticle({ ...newArticle, author: e.target.value })}
+                    className="bg-black/20 border-purple-500/30 text-white"
+                  />
+                  <Input
+                    placeholder="Источник URL *"
+                    value={newArticle.original_url}
+                    onChange={(e) => setNewArticle({ ...newArticle, original_url: e.target.value })}
+                    className="bg-black/20 border-purple-500/30 text-white"
+                  />
+                  <Input
+                    type="datetime-local"
+                    value={newArticle.published_at}
+                    onChange={(e) => setNewArticle({ ...newArticle, published_at: e.target.value })}
+                    className="bg-black/20 border-purple-500/30 text-white"
+                  />
+                  <Textarea
+                    placeholder="Краткое описание"
+                    value={newArticle.summary}
+                    onChange={(e) => setNewArticle({ ...newArticle, summary: e.target.value })}
+                    className="bg-black/20 border-purple-500/30 text-white"
+                    rows={3}
+                  />
+                  <Textarea
+                    placeholder="Содержание статьи *"
+                    value={newArticle.content}
+                    onChange={(e) => setNewArticle({ ...newArticle, content: e.target.value })}
+                    className="bg-black/20 border-purple-500/30 text-white"
+                    rows={8}
+                  />
+                  <div className="flex justify-end space-x-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsCreatingArticle(false)}
+                      className="border-gray-500/50 text-gray-300"
+                    >
+                      Отмена
+                    </Button>
+                    <Button
+                      onClick={createArticle}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <Save size={14} className="mr-2" />
+                      Создать статью
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </div>
