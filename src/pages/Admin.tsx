@@ -1,6 +1,7 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Plus, Edit, Trash2, Volume2, FileText, Send, 
   Settings, Eye, EyeOff, Wand2, Save 
@@ -15,39 +16,57 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 
-// Mock data
-const mockNews = [
-  {
-    id: 1,
-    title: "OpenAI снова 'революционизирует' мир: GPT-5 теперь умеет делать кофе",
-    category: "Breakthrough",
-    author: "AI Skeptic",
-    date: "2025-01-07",
-    status: "published",
-    views: 1337,
-    hasAudio: true,
-    hasTldr: true
-  },
-  {
-    id: 2,
-    title: "Google Bard переименован в Gemini (опять)",
-    category: "Corporate Drama",
-    author: "Tech Cynic",
-    date: "2025-01-06",
-    status: "draft",
-    views: 0,
-    hasAudio: false,
-    hasTldr: false
-  }
-];
+// Types
+interface Article {
+  id: string;
+  title: string;
+  content: string;
+  author: string | null;
+  published_at: string;
+  summary: string | null;
+  audio_url: string | null;
+  tags: string[] | null;
+  processed: boolean;
+}
 
 const Admin = () => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [credentials, setCredentials] = useState({ username: '', password: '' });
-  const [selectedNews, setSelectedNews] = useState<any>(null);
+  const [selectedNews, setSelectedNews] = useState<Article | null>(null);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isGenerating, setIsGenerating] = useState({ tldr: false, audio: false });
+  const [loading, setLoading] = useState(true);
+
+  // Load articles when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadArticles();
+    }
+  }, [isAuthenticated]);
+
+  const loadArticles = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('articles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setArticles(data || []);
+    } catch (error) {
+      console.error('Error loading articles:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить статьи",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,40 +86,110 @@ const Admin = () => {
     }
   };
 
-  const handleGenerateTldr = async (newsId: number) => {
+  const handleGenerateTldr = async (articleId: string) => {
     setIsGenerating({ ...isGenerating, tldr: true });
-    // Mock API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    toast({
-      title: "TL;DR сгенерирован",
-      description: "Краткий обзор создан с помощью OpenAI",
-    });
-    setIsGenerating({ ...isGenerating, tldr: false });
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-tldr', {
+        body: { articleId }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "TL;DR сгенерирован",
+        description: "Краткий обзор создан с помощью OpenAI",
+      });
+      
+      // Refresh articles and update selected news
+      await loadArticles();
+      if (selectedNews) {
+        const updatedArticle = articles.find(a => a.id === articleId);
+        if (updatedArticle) setSelectedNews(updatedArticle);
+      }
+    } catch (error) {
+      console.error('Error generating TL;DR:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось сгенерировать TL;DR",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating({ ...isGenerating, tldr: false });
+    }
   };
 
-  const handleGenerateAudio = async (newsId: number) => {
+  const handleGenerateAudio = async (articleId: string) => {
     setIsGenerating({ ...isGenerating, audio: true });
-    // Mock API call
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    toast({
-      title: "Аудио сгенерировано",
-      description: "Аудиоверсия создана с помощью ElevenLabs",
-    });
-    setIsGenerating({ ...isGenerating, audio: false });
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-audio', {
+        body: { articleId }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Аудио сгенерировано",
+        description: "Аудиоверсия создана с помощью ElevenLabs",
+      });
+      
+      // Refresh articles and update selected news
+      await loadArticles();
+      if (selectedNews) {
+        const updatedArticle = articles.find(a => a.id === articleId);
+        if (updatedArticle) setSelectedNews(updatedArticle);
+      }
+    } catch (error) {
+      console.error('Error generating audio:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось сгенерировать аудио",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating({ ...isGenerating, audio: false });
+    }
   };
 
-  const handlePublishToTelegraph = async (newsId: number) => {
+  const handlePublishToTelegraph = async (articleId: string) => {
     toast({
       title: "Публикация в Telegraph",
       description: "Статья успешно опубликована в Telegraph",
     });
   };
 
-  const handlePublishToNotion = async (newsId: number) => {
+  const handlePublishToNotion = async (articleId: string) => {
     toast({
       title: "Публикация в Notion",
       description: "Статья успешно добавлена в Notion",
     });
+  };
+
+  const handleToggleProcessed = async (articleId: string, processed: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('articles')
+        .update({ processed })
+        .eq('id', articleId);
+
+      if (error) throw error;
+
+      toast({
+        title: processed ? "Статья опубликована" : "Статья снята с публикации",
+        description: processed ? "Статья теперь видна пользователям" : "Статья скрыта от пользователей",
+      });
+
+      await loadArticles();
+      if (selectedNews?.id === articleId) {
+        setSelectedNews({ ...selectedNews, processed });
+      }
+    } catch (error) {
+      console.error('Error updating article:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось обновить статью",
+        variant: "destructive",
+      });
+    }
   };
 
   if (!isAuthenticated) {
@@ -193,38 +282,50 @@ const Admin = () => {
                   <CardTitle className="text-white">Список новостей</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {mockNews.map((news) => (
-                      <div 
-                        key={news.id} 
-                        className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                          selectedNews?.id === news.id 
-                            ? 'border-purple-400 bg-purple-500/10' 
-                            : 'border-purple-500/30 hover:border-purple-400/50'
-                        }`}
-                        onClick={() => setSelectedNews(news)}
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <h4 className="text-white font-medium text-sm line-clamp-2">
-                            {news.title}
-                          </h4>
-                          <Badge 
-                            variant={news.status === 'published' ? 'default' : 'outline'}
-                            className="ml-2 flex-shrink-0"
-                          >
-                            {news.status}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-gray-400">
-                          <span>{news.category} • {news.author}</span>
-                          <div className="flex items-center space-x-2">
-                            {news.hasTldr && <Badge variant="outline" className="text-xs">TL;DR</Badge>}
-                            {news.hasAudio && <Badge variant="outline" className="text-xs">Audio</Badge>}
+                  {loading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full mx-auto mb-2"></div>
+                      <p className="text-gray-400">Загрузка статей...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {articles.map((article) => (
+                        <div 
+                          key={article.id} 
+                          className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                            selectedNews?.id === article.id 
+                              ? 'border-purple-400 bg-purple-500/10' 
+                              : 'border-purple-500/30 hover:border-purple-400/50'
+                          }`}
+                          onClick={() => setSelectedNews(article)}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="text-white font-medium text-sm line-clamp-2">
+                              {article.title}
+                            </h4>
+                            <Badge 
+                              variant={article.processed ? 'default' : 'outline'}
+                              className="ml-2 flex-shrink-0"
+                            >
+                              {article.processed ? 'Published' : 'Draft'}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-gray-400">
+                            <span>{article.tags?.[0] || 'Без категории'} • {article.author || 'Неизвестен'}</span>
+                            <div className="flex items-center space-x-2">
+                              {article.summary && <Badge variant="outline" className="text-xs">TL;DR</Badge>}
+                              {article.audio_url && <Badge variant="outline" className="text-xs">Audio</Badge>}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                      {articles.length === 0 && (
+                        <div className="text-center py-8 text-gray-400">
+                          Нет статей для отображения
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -252,18 +353,13 @@ const Admin = () => {
                           className="bg-black/20 border-purple-500/30 text-white"
                           placeholder="Заголовок"
                         />
-                        <Select defaultValue={selectedNews.category}>
-                          <SelectTrigger className="bg-black/20 border-purple-500/30 text-white">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Breakthrough">Breakthrough</SelectItem>
-                            <SelectItem value="Corporate Drama">Corporate Drama</SelectItem>
-                            <SelectItem value="Hype">Hype</SelectItem>
-                            <SelectItem value="Reality Check">Reality Check</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Input 
+                          defaultValue={selectedNews.author || ''}
+                          className="bg-black/20 border-purple-500/30 text-white"
+                          placeholder="Автор"
+                        />
                         <Textarea 
+                          defaultValue={selectedNews.content}
                           placeholder="Содержание статьи..."
                           className="bg-black/20 border-purple-500/30 text-white min-h-32"
                         />
@@ -275,10 +371,22 @@ const Admin = () => {
                     ) : (
                       <div className="space-y-4">
                         <div className="text-gray-300">
-                          <strong>Статус:</strong> {selectedNews.status}
+                          <strong>Статус:</strong> {selectedNews.processed ? 'Опубликовано' : 'Черновик'}
                         </div>
                         <div className="text-gray-300">
-                          <strong>Просмотров:</strong> {selectedNews.views}
+                          <strong>Автор:</strong> {selectedNews.author || 'Не указан'}
+                        </div>
+                        <div className="text-gray-300">
+                          <strong>Создано:</strong> {new Date(selectedNews.published_at).toLocaleDateString('ru-RU')}
+                        </div>
+                        
+                        {/* Publication Toggle */}
+                        <div className="flex items-center justify-between pt-4 border-t border-purple-500/20">
+                          <span className="text-gray-300">Опубликовать статью</span>
+                          <Switch 
+                            checked={selectedNews.processed}
+                            onCheckedChange={(checked) => handleToggleProcessed(selectedNews.id, checked)}
+                          />
                         </div>
                         
                         {/* AI Tools */}
@@ -286,7 +394,10 @@ const Admin = () => {
                           <h4 className="text-white font-medium">ИИ-инструменты</h4>
                           
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-300">Генерация TL;DR</span>
+                            <div>
+                              <span className="text-gray-300">Генерация TL;DR</span>
+                              {selectedNews.summary && <p className="text-xs text-green-400">✓ Готово</p>}
+                            </div>
                             <Button 
                               size="sm" 
                               disabled={isGenerating.tldr}
@@ -302,7 +413,10 @@ const Admin = () => {
                           </div>
                           
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-300">Генерация аудио</span>
+                            <div>
+                              <span className="text-gray-300">Генерация аудио</span>
+                              {selectedNews.audio_url && <p className="text-xs text-green-400">✓ Готово</p>}
+                            </div>
                             <Button 
                               size="sm" 
                               disabled={isGenerating.audio}
@@ -316,6 +430,24 @@ const Admin = () => {
                               )}
                             </Button>
                           </div>
+                          
+                          {/* Show generated summary */}
+                          {selectedNews.summary && (
+                            <div className="pt-2">
+                              <p className="text-xs text-gray-400 mb-1">Сгенерированное резюме:</p>
+                              <p className="text-sm text-gray-300 bg-black/20 p-2 rounded">{selectedNews.summary}</p>
+                            </div>
+                          )}
+                          
+                          {/* Audio player */}
+                          {selectedNews.audio_url && (
+                            <div className="pt-2">
+                              <p className="text-xs text-gray-400 mb-1">Аудиоверсия:</p>
+                              <audio controls className="w-full">
+                                <source src={selectedNews.audio_url} type="audio/mpeg" />
+                              </audio>
+                            </div>
+                          )}
                         </div>
 
                         {/* Publishing */}
