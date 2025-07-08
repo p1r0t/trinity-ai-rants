@@ -155,7 +155,7 @@ const Index = () => {
     }
   };
 
-  const categories = ["Все", "Breakthrough", "Corporate Drama", "Hype", "Reality Check"];
+  const categories = ["Все", "Технологии", "Мировые новости", "Бизнес", "Наука", "Россия", "Европа", "Азия", "RSS"];
   const displayedArticles = selectedCategory === "Все" 
     ? filteredArticles 
     : filteredArticles.filter(article => article.tags?.includes(selectedCategory));

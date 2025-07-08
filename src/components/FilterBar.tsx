@@ -21,21 +21,23 @@ const FilterBar = ({ categories, selectedCategory, onCategoryChange }: FilterBar
         />
       </div>
 
-      {/* Category filters */}
-      <div className="flex flex-wrap gap-2">
+      {/* Category filters - Mobile optimized */}
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
         {categories.map((category) => (
           <Button
             key={category}
             variant={selectedCategory === category ? "default" : "outline"}
             size="sm"
             onClick={() => onCategoryChange(category)}
-            className={
-              selectedCategory === category
-                ? "bg-purple-600 hover:bg-purple-700 text-white"
-                : "border-purple-500/50 text-purple-300 hover:bg-purple-500/10"
-            }
+            className={`
+              text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 transition-all duration-200
+              ${selectedCategory === category
+                ? "bg-purple-600 hover:bg-purple-700 text-white border-purple-600"
+                : "border-purple-500/50 text-purple-300 hover:bg-purple-500/10 hover:border-purple-400/70"
+              }
+            `}
           >
-            {category === 'all' ? 'Все' : category}
+            {category === 'Все' ? 'Все' : category}
           </Button>
         ))}
       </div>

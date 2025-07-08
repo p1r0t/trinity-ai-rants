@@ -6,69 +6,99 @@ import { Badge } from "@/components/ui/badge";
 
 const categories = [
   {
-    name: "Breakthrough",
-    description: "Революционные прорывы, которые изменят мир (или нет)",
-    count: 45,
+    name: "Технологии",
+    key: "tech",
+    description: "Последние новости технологий и ИИ",
+    count: 156,
     color: "bg-blue-500/20 border-blue-500/50 text-blue-300",
     articles: [
-      "OpenAI снова 'революционизирует' мир",
-      "Новый ИИ умеет читать мысли (спойлер: нет)",
-      "Квантовый компьютер решил все проблемы"
+      "OpenAI выпустила GPT-5",
+      "Google представила новый Gemini",
+      "Apple инвестирует в ИИ"
     ]
   },
   {
-    name: "Corporate Drama",
-    description: "Битвы корпораций, переименования и PR-кризисы",
+    name: "Мировые новости",
+    key: "world",
+    description: "Важные события со всего мира",
+    count: 234,
+    color: "bg-green-500/20 border-green-500/50 text-green-300",
+    articles: [
+      "Саммит G7 обсуждает регулирование ИИ",
+      "ООН принимает резолюцию по ИИ",
+      "Международные новости недели"
+    ]
+  },
+  {
+    name: "Бизнес",
+    key: "business",
+    description: "Финансы, инвестиции и корпоративные новости",
+    count: 189,
+    color: "bg-yellow-500/20 border-yellow-500/50 text-yellow-300",
+    articles: [
+      "NVIDIA достигла $3 трлн капитализации",
+      "Венчурные инвестиции в ИИ растут",
+      "IPO ИИ-стартапов в 2024"
+    ]
+  },
+  {
+    name: "Наука",
+    key: "science",
+    description: "Научные открытия и исследования",
+    count: 87,
+    color: "bg-purple-500/20 border-purple-500/50 text-purple-300",
+    articles: [
+      "Новое исследование нейронных сетей",
+      "Квантовые вычисления и ИИ",
+      "Биоинформатика и машинное обучение"
+    ]
+  },
+  {
+    name: "Россия",
+    key: "russia",
+    description: "Российские новости технологий и ИИ",
     count: 67,
     color: "bg-red-500/20 border-red-500/50 text-red-300",
     articles: [
-      "Google Bard переименован в Gemini (опять)",
-      "Meta vs Apple: война за приватность",
-      "Microsoft покупает еще одну ИИ-компанию"
+      "Яндекс развивает YandexGPT",
+      "Сбер инвестирует в ИИ",
+      "Российские ИИ-стартапы"
     ]
   },
   {
-    name: "Hype",
-    description: "Чистый маркетинг и необоснованные обещания",
-    count: 89,
-    color: "bg-yellow-500/20 border-yellow-500/50 text-yellow-300",
+    name: "Европа",
+    key: "europe",
+    description: "Европейские технологические новости",
+    count: 92,
+    color: "bg-indigo-500/20 border-indigo-500/50 text-indigo-300",
     articles: [
-      "ИИ заменит всех программистов завтра",
-      "Новый чат-бот 'лучше ChatGPT'",
-      "Стартап обещает AGI через год"
+      "ЕС принимает AI Act",
+      "Французские ИИ-стартапы",
+      "Немецкие инвестиции в технологии"
     ]
   },
   {
-    name: "Reality Check",
-    description: "Разбор мифов и возвращение на землю",
-    count: 34,
-    color: "bg-green-500/20 border-green-500/50 text-green-300",
-    articles: [
-      "Почему ИИ не захватит мир в 2024",
-      "Ограничения современных LLM",
-      "Что такое hallucination и почему это проблема"
-    ]
-  },
-  {
-    name: "Open Source Drama",
-    description: "Споры вокруг открытости моделей и лицензий",
-    count: 23,
-    color: "bg-purple-500/20 border-purple-500/50 text-purple-300",
-    articles: [
-      "Meta выпустила 'открытый' ИИ с закрытыми исходниками",
-      "Споры вокруг лицензии Llama 2",
-      "Что означает 'открытый' ИИ на самом деле"
-    ]
-  },
-  {
-    name: "Ethics & Safety",
-    description: "Этические вопросы и безопасность ИИ",
-    count: 19,
+    name: "Азия",
+    key: "asia",
+    description: "Азиатские технологические тренды",
+    count: 134,
     color: "bg-orange-500/20 border-orange-500/50 text-orange-300",
     articles: [
-      "Anthropic vs OpenAI: кто более этичен?",
-      "Новые правила ЕС по ИИ",
-      "Проблемы bias в языковых моделях"
+      "Китайские ИИ-модели",
+      "Японские роботы с ИИ",
+      "Корейские технологические гиганты"
+    ]
+  },
+  {
+    name: "RSS фиды",
+    key: "rss",
+    description: "Автоматически собранные новости",
+    count: 45,
+    color: "bg-gray-500/20 border-gray-500/50 text-gray-300",
+    articles: [
+      "Новости из RSS-каналов",
+      "Автоматический парсинг",
+      "Агрегированный контент"
     ]
   }
 ];
@@ -130,8 +160,8 @@ const Categories = () => {
             </div>
           </div>
 
-          {/* Categories Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Categories Grid - Responsive */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {categories.map((category) => (
               <Card key={category.name} className="bg-black/40 border-purple-500/30 hover:border-purple-400/50 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/10 cursor-pointer">
                 <CardHeader>
@@ -147,19 +177,19 @@ const Categories = () => {
                     {category.description}
                   </p>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <div className="space-y-2">
-                    <h4 className="text-white font-medium text-sm mb-3">Популярные статьи:</h4>
+                    <h4 className="text-white font-medium text-xs sm:text-sm mb-3">Популярные статьи:</h4>
                     {category.articles.map((article, index) => (
-                      <div key={index} className="text-gray-400 text-sm hover:text-purple-300 transition-colors cursor-pointer">
+                      <div key={index} className="text-gray-400 text-xs sm:text-sm hover:text-purple-300 transition-colors cursor-pointer leading-relaxed">
                         • {article}
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 pt-4 border-t border-purple-500/20">
+                  <div className="mt-4 pt-3 border-t border-purple-500/20">
                     <div className="text-xs text-gray-500 flex items-center">
-                      <Calendar size={12} className="mr-1" />
-                      Последнее обновление: вчера
+                      <Calendar size={10} className="mr-1" />
+                      <span className="truncate">Последнее обновление: вчера</span>
                     </div>
                   </div>
                 </CardContent>
