@@ -9,6 +9,8 @@ import FilterBar from "@/components/FilterBar";
 import StatsWidget from "@/components/StatsWidget";
 import ReactionButton from "@/components/ReactionButton";
 import AudioPlayer from "@/components/AudioPlayer";
+import ShareButton from "@/components/ShareButton";
+import MobileMenu from "@/components/MobileMenu";
 import { Calendar, TrendingUp, Clock, User, LogOut, Settings, Headphones } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -132,11 +134,11 @@ const Index = () => {
     : articles.filter(article => article.tags?.includes(selectedCategory));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 safe-top safe-bottom">
       {/* Header */}
-      <nav className="bg-black/30 backdrop-blur-sm border-b border-purple-500/20">
+      <nav className="bg-black/30 backdrop-blur-sm border-b border-purple-500/20 sticky top-0 z-50 safe-left safe-right">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center flex-wrap gap-4">
             <div className="flex items-center space-x-8">
               <h1 
                 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent cursor-pointer"
@@ -144,7 +146,7 @@ const Index = () => {
               >
                 Trinity AI News
               </h1>
-              <div className="hidden md:flex space-x-6">
+              <div className="hidden md:flex space-x-6 overflow-x-auto">
                 <Link to="/" className="text-gray-300 hover:text-white transition-colors">
                   Главная
                 </Link>
@@ -171,14 +173,14 @@ const Index = () => {
             <div className="flex items-center space-x-4">
               {user ? (
                 <>
-                  <span className="text-sm text-gray-300">
+                  <span className="text-sm text-gray-300 hidden sm:inline">
                     Привет, {user.email}
                   </span>
                   <Button 
                     variant="ghost" 
                     size="sm"
                     onClick={handleSignOut}
-                    className="text-gray-300 hover:text-white"
+                    className="text-gray-300 hover:text-white hidden sm:inline-flex"
                   >
                     <LogOut size={16} />
                   </Button>
@@ -187,18 +189,26 @@ const Index = () => {
                 <Button 
                   variant="outline" 
                   onClick={() => navigate('/auth')}
-                  className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10"
+                  className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10 hidden sm:inline-flex"
                 >
                   <User size={16} className="mr-2" />
                   Войти
                 </Button>
               )}
+              
+              <MobileMenu 
+                user={user}
+                userRole={userRole}
+                showAdminAccess={showAdminAccess}
+                onSignOut={handleSignOut}
+                onNavigateToAuth={() => navigate('/auth')}
+              />
             </div>
           </div>
         </div>
       </nav>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 safe-left safe-right">
         {/* Hero Section */}
         <div className="mb-8 text-center">
           <h2 className="text-4xl font-bold text-white mb-4">
@@ -218,9 +228,9 @@ const Index = () => {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="xl:col-span-2 space-y-6">
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full mx-auto mb-4"></div>
@@ -276,6 +286,11 @@ const Index = () => {
                       </div>
                       
                       <div className="flex items-center space-x-2">
+                        <ShareButton 
+                          title={article.title}
+                          text={article.summary || article.title}
+                        />
+                        <div className="h-4 w-px bg-gray-600" />
                         <ReactionButton articleId={article.id} type="smart" user={user} />
                         <ReactionButton articleId={article.id} type="funny" user={user} />
                         <ReactionButton articleId={article.id} type="trash" user={user} />

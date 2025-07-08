@@ -164,3 +164,92 @@ All colors MUST be HSL.
 .animate-pulse-slow {
   animation: pulse-slow 3s ease-in-out infinite;
 }
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Better touch targets */
+  button, .cursor-pointer, input[type="range"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Improved scrolling */
+  body {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: hidden;
+  }
+  
+  /* Hide scrollbars on mobile */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Better text sizing */
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.25rem; }
+}
+
+/* Audio player mobile optimizations */
+@media (max-width: 640px) {
+  .audio-controls {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .speed-controls {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .volume-control {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+/* Touch improvements */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Safe area adjustments for mobile */
+@supports(padding: max(0px)) {
+  .safe-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  
+  .safe-left {
+    padding-left: max(1rem, env(safe-area-inset-left));
+  }
+  
+  .safe-right {
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
+/* Improved mobile navigation */
+@media (max-width: 768px) {
+  nav .hidden.md\\:flex {
+    display: none !important;
+  }
+}
+
+/* Better mobile card layout */
+@media (max-width: 640px) {
+  .card-mobile {
+    margin: 0 -1rem;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+}

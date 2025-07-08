@@ -1,0 +1,19 @@
+{
+  "appId": "app.lovable.dfdaa4dd8d0c4bff99dad45c0600c1ae",
+  "appName": "trinity-ai-rants",
+  "webDir": "dist",
+  "server": {
+    "url": "https://dfdaa4dd-8d0c-4bff-99da-d45c0600c1ae.lovableproject.com?forceHideBadge=true",
+    "cleartext": true
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#1e1b4b",
+      "showSpinner": false
+    }
+  }
+}

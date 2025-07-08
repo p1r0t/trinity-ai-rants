@@ -1,73 +1,86 @@
-# Welcome to your Lovable project
+# Trinity AI News - Mobile App
 
-## Project info
+Trinity AI News теперь доступен как мобильное приложение с полным функционалом!
+
+## 🚀 Что нового:
+
+### ✅ **Исправлены лайки и реакции:**
+- Полноценная система реакций (умно/смешно/мусор)
+- Реальное сохранение в базу данных
+- Работает только для авторизованных пользователей
+
+### 📱 **Функция "Поделиться":**
+- Нативное sharing на мобильных устройствах
+- Поддержка Telegram, WhatsApp, VK, Twitter
+- Копирование ссылки в буфер обмена
+
+### 🎵 **Улучшенный аудио плеер:**
+- **Контроль скорости:** 0.5x, 0.75x, 1x, 1.25x, 1.5x, 2x
+- **Перемотка:** кнопки ±10 сек + перетаскивание ползунка
+- **Скачивание аудио** одним кликом
+- Мобильно-оптимизированный интерфейс
+
+### 📱 **Мобильное приложение:**
+- Создано с Capacitor для iOS и Android
+- Оптимизированный UI для мобильных устройств
+- Safe area support для современных смартфонов
+- Улучшенные touch targets и навигация
+
+## 📲 Установка мобильного приложения:
+
+1. **Экспортируйте проект в Github** через кнопку "Export to Github"
+2. Склонируйте проект: `git pull`
+3. Установите зависимости: `npm install`
+4. Добавьте платформы:
+   - iOS: `npx cap add ios`
+   - Android: `npx cap add android`
+5. Обновите платформы: `npx cap update ios` или `npx cap update android`
+6. Соберите проект: `npm run build`
+7. Синхронизируйте: `npx cap sync`
+8. Запустите:
+   - Android: `npx cap run android`
+   - iOS: `npx cap run ios` (требует Mac с Xcode)
+
+## 🎯 Основные возможности:
+
+- **Скрытая админ-панель** (3 клика по логотипу для админов)
+- **AI-генерация** TL;DR и аудио
+- **Полная система аутентификации**
+- **Реакции и комментарии**
+- **Мобильное меню** с плавными анимациями
+- **Hot-reload** в development режиме
+
+## 🔧 Для разработчиков:
+
+- appId: `app.lovable.dfdaa4dd8d0c4bff99dad45c0600c1ae`
+- appName: `trinity-ai-rants`
+- Hot-reload URL настроен автоматически
+
+Приложение готово к публикации в App Store и Google Play!
+
+---
+
+## Project info (Lovable)
 
 **URL**: https://lovable.dev/projects/dfdaa4dd-8d0c-4bff-99da-d45c0600c1ae
 
-## How can I edit this code?
+## Technologies
 
-There are several ways of editing your application.
+This project is built with:
+- Vite + TypeScript + React
+- shadcn-ui + Tailwind CSS
+- Supabase (Database + Auth)
+- Capacitor (Mobile App)
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/dfdaa4dd-8d0c-4bff-99da-d45c0600c1ae) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Development
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/dfdaa4dd-8d0c-4bff-99da-d45c0600c1ae) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+For mobile development:
+```sh
+npx cap sync
+npx cap run android  # or ios
+```
