@@ -1,23 +1,34 @@
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Plus, Edit, Trash2, Volume2, FileText, Send, 
-  Settings, Eye, EyeOff, Wand2, Save, LogOut 
-} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
+import { 
+  Settings, 
+  FileText, 
+  Users, 
+  BarChart3, 
+  Plus, 
+  Edit, 
+  Trash2,
+  Save,
+  ArrowLeft,
+  Globe,
+  Mic,
+  MessageSquare,
+  Eye,
+  EyeOff,
+  Wand2,
+  Volume2
+} from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 
-// Types
 interface Article {
   id: string;
   title: string;
@@ -25,86 +36,89 @@ interface Article {
   author: string | null;
   published_at: string;
   summary: string | null;
-  audio_url: string | null;
-  tags: string[] | null;
   processed: boolean;
+  tags: string[] | null;
+  audio_url: string | null;
+}
+
+interface NewsSource {
+  id: string;
+  name: string;
+  url: string;
+  source_type: string;
+  is_active: boolean;
 }
 
 const Admin = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [selectedNews, setSelectedNews] = useState<Article | null>(null);
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isGenerating, setIsGenerating] = useState({ tldr: false, audio: false });
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('articles');
+  
+  // Articles
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [editingArticle, setEditingArticle] = useState<Article | null>(null);
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [isGenerating, setIsGenerating] = useState({ tldr: false, audio: false });
+  
+  // News Sources
+  const [sources, setSources] = useState<NewsSource[]>([]);
+  const [newSource, setNewSource] = useState({ name: '', url: '', source_type: 'rss' });
 
-  // Check authentication and user role
   useEffect(() => {
     checkAuth();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        checkUserRole(session.user.id);
-      } else {
-        setUser(null);
-        setUserRole(null);
-        navigate('/auth');
-      }
-    });
+  }, []);
 
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+  useEffect(() => {
+    if (userRole === 'admin') {
+      loadData();
+    }
+  }, [userRole, activeTab]);
 
   const checkAuth = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
-      
       setUser(user);
-      await checkUserRole(user.id);
+      
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+        
+        setUserRole(data?.role || null);
+        
+        if (data?.role !== 'admin') {
+          toast({
+            title: "Доступ запрещен",
+            description: "У вас нет прав администратора",
+            variant: "destructive",
+          });
+          navigate('/');
+        }
+      } else {
+        navigate('/auth');
+      }
     } catch (error) {
-      console.error('Auth check failed:', error);
-      navigate('/auth');
+      console.error('Error checking auth:', error);
+      navigate('/');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const checkUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
-      
-      if (error) throw error;
-      
-      if (data.role !== 'admin') {
-        toast({
-          title: "Доступ запрещен",
-          description: "У вас нет прав администратора",
-          variant: "destructive",
-        });
-        navigate('/');
-        return;
-      }
-      
-      setUserRole(data.role);
-      loadArticles();
-    } catch (error) {
-      console.error('Error checking user role:', error);
-      navigate('/auth');
+  const loadData = async () => {
+    if (activeTab === 'articles') {
+      await loadArticles();
+    } else if (activeTab === 'sources') {
+      await loadSources();
     }
   };
 
   const loadArticles = async () => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('articles')
         .select('*')
@@ -114,17 +128,87 @@ const Admin = () => {
       setArticles(data || []);
     } catch (error) {
       console.error('Error loading articles:', error);
-      toast({
-        title: "Ошибка",
-        description: "Не удалось загрузить статьи",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleGenerateTldr = async (articleId: string) => {
+  const loadSources = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('news_sources')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setSources(data || []);
+    } catch (error) {
+      console.error('Error loading sources:', error);
+    }
+  };
+
+  const updateArticle = async (article: Article) => {
+    try {
+      const { error } = await supabase
+        .from('articles')
+        .update({
+          title: article.title,
+          content: article.content,
+          summary: article.summary,
+          processed: article.processed,
+          tags: article.tags,
+          author: article.author
+        })
+        .eq('id', article.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Успешно",
+        description: "Статья обновлена",
+      });
+      
+      setEditingArticle(null);
+      loadArticles();
+    } catch (error) {
+      console.error('Error updating article:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось обновить статью",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteArticle = async (id: string) => {
+    if (!confirm('Удалить статью?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('articles')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Успешно",
+        description: "Статья удалена",
+      });
+      
+      loadArticles();
+      if (selectedArticle?.id === id) {
+        setSelectedArticle(null);
+      }
+    } catch (error) {
+      console.error('Error deleting article:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить статью",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const generateTldr = async (articleId: string) => {
     setIsGenerating({ ...isGenerating, tldr: true });
     try {
       const { data, error } = await supabase.functions.invoke('generate-tldr', {
@@ -135,15 +219,10 @@ const Admin = () => {
 
       toast({
         title: "TL;DR сгенерирован",
-        description: "Краткий обзор создан с помощью OpenAI",
+        description: "Краткий обзор создан",
       });
       
-      // Refresh articles and update selected news
-      await loadArticles();
-      if (selectedNews) {
-        const updatedArticle = articles.find(a => a.id === articleId);
-        if (updatedArticle) setSelectedNews(updatedArticle);
-      }
+      loadArticles();
     } catch (error) {
       console.error('Error generating TL;DR:', error);
       toast({
@@ -156,7 +235,7 @@ const Admin = () => {
     }
   };
 
-  const handleGenerateAudio = async (articleId: string) => {
+  const generateAudio = async (articleId: string) => {
     setIsGenerating({ ...isGenerating, audio: true });
     try {
       const { data, error } = await supabase.functions.invoke('generate-audio', {
@@ -167,15 +246,10 @@ const Admin = () => {
 
       toast({
         title: "Аудио сгенерировано",
-        description: "Аудиоверсия создана с помощью ElevenLabs",
+        description: "Аудиоверсия создана",
       });
       
-      // Refresh articles and update selected news
-      await loadArticles();
-      if (selectedNews) {
-        const updatedArticle = articles.find(a => a.id === articleId);
-        if (updatedArticle) setSelectedNews(updatedArticle);
-      }
+      loadArticles();
     } catch (error) {
       console.error('Error generating audio:', error);
       toast({
@@ -188,386 +262,403 @@ const Admin = () => {
     }
   };
 
-  const handlePublishToTelegraph = async (articleId: string) => {
-    toast({
-      title: "Публикация в Telegraph",
-      description: "Статья успешно опубликована в Telegraph",
-    });
-  };
-
-  const handlePublishToNotion = async (articleId: string) => {
-    toast({
-      title: "Публикация в Notion",
-      description: "Статья успешно добавлена в Notion",
-    });
-  };
-
-  const handleToggleProcessed = async (articleId: string, processed: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('articles')
-        .update({ processed })
-        .eq('id', articleId);
-
-      if (error) throw error;
-
-      toast({
-        title: processed ? "Статья опубликована" : "Статья снята с публикации",
-        description: processed ? "Статья теперь видна пользователям" : "Статья скрыта от пользователей",
-      });
-
-      await loadArticles();
-      if (selectedNews?.id === articleId) {
-        setSelectedNews({ ...selectedNews, processed });
-      }
-    } catch (error) {
-      console.error('Error updating article:', error);
+  const addSource = async () => {
+    if (!newSource.name || !newSource.url) {
       toast({
         title: "Ошибка",
-        description: "Не удалось обновить статью",
+        description: "Заполните все поля",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('news_sources')
+        .insert([newSource]);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Успешно",
+        description: "Источник добавлен",
+      });
+      
+      setNewSource({ name: '', url: '', source_type: 'rss' });
+      loadSources();
+    } catch (error) {
+      console.error('Error adding source:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось добавить источник",
         variant: "destructive",
       });
     }
   };
 
-  const handleSignOut = async () => {
+  const toggleSource = async (id: string, is_active: boolean) => {
     try {
-      await supabase.auth.signOut();
-      navigate('/auth');
+      const { error } = await supabase
+        .from('news_sources')
+        .update({ is_active })
+        .eq('id', id);
+      
+      if (error) throw error;
+      loadSources();
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error('Error toggling source:', error);
     }
   };
 
-  // Show loading or redirect if not authenticated
-  if (!user || userRole !== 'admin') {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-white">Проверка доступа...</p>
-        </div>
+        <div className="animate-spin w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full"></div>
       </div>
     );
+  }
+
+  if (userRole !== 'admin') {
+    return null;
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Header */}
-      <header className="border-b border-purple-500/20 bg-black/30 backdrop-blur-sm">
+      <header className="border-b border-purple-500/20 bg-black/30 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Trinity AI Admin
-            </h1>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-purple-300">
-                Добро пожаловать, {user.email}
+              <Link to="/">
+                <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white">
+                  <ArrowLeft size={16} className="mr-2" />
+                  На главную
+                </Button>
+              </Link>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">
+                Trinity AI Admin
+              </h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-300">
+                {user?.email}
               </span>
-              <Button variant="outline" onClick={() => navigate('/')} className="border-purple-500/50 text-purple-300">
-                Назад к сайту
-              </Button>
-              <Button variant="outline" onClick={handleSignOut} className="border-red-500/50 text-red-300">
-                <LogOut size={16} className="mr-2" />
-                Выйти
-              </Button>
+              <Badge variant="outline" className="border-orange-500/50 text-orange-300">
+                Admin
+              </Badge>
             </div>
           </div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="news" className="space-y-6">
-          <TabsList className="bg-black/40 border border-purple-500/30">
-            <TabsTrigger value="news" className="data-[state=active]:bg-purple-600">
-              Новости
-            </TabsTrigger>
-            <TabsTrigger value="podcasts" className="data-[state=active]:bg-purple-600">
-              Подкасты
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-purple-600">
-              Настройки
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="news" className="space-y-6">
-            {/* News Management */}
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">Управление новостями</h2>
-              <Button className="bg-purple-600 hover:bg-purple-700">
-                <Plus className="mr-2" size={16} />
-                Добавить новость
-              </Button>
+        <div className="max-w-7xl mx-auto">
+          {/* Navigation Tabs */}
+          <div className="mb-8">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: 'articles', label: 'Статьи', icon: FileText },
+                { id: 'sources', label: 'Источники', icon: Globe },
+                { id: 'users', label: 'Пользователи', icon: Users },
+                { id: 'stats', label: 'Статистика', icon: BarChart3 },
+                { id: 'settings', label: 'Настройки', icon: Settings }
+              ].map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <Button
+                    key={tab.id}
+                    variant={activeTab === tab.id ? "default" : "outline"}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={
+                      activeTab === tab.id
+                        ? "bg-orange-600 hover:bg-orange-700 text-white"
+                        : "border-purple-500/50 text-purple-300 hover:bg-purple-500/10"
+                    }
+                  >
+                    <Icon size={16} className="mr-2" />
+                    {tab.label}
+                  </Button>
+                );
+              })}
             </div>
+          </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* News List */}
-              <Card className="bg-black/40 border-purple-500/30">
-                <CardHeader>
-                  <CardTitle className="text-white">Список новостей</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full mx-auto mb-2"></div>
-                      <p className="text-gray-400">Загрузка статей...</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
+          {/* Articles Tab */}
+          {activeTab === 'articles' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Articles List */}
+              <div className="lg:col-span-1">
+                <Card className="bg-black/40 border-purple-500/30">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center justify-between">
+                      Статьи ({articles.length})
+                      <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                        <Plus size={14} />
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="max-h-96 overflow-y-auto">
+                    <div className="space-y-2">
                       {articles.map((article) => (
-                        <div 
-                          key={article.id} 
-                          className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                            selectedNews?.id === article.id 
-                              ? 'border-purple-400 bg-purple-500/10' 
+                        <div
+                          key={article.id}
+                          onClick={() => setSelectedArticle(article)}
+                          className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                            selectedArticle?.id === article.id
+                              ? 'border-orange-400 bg-orange-500/10'
                               : 'border-purple-500/30 hover:border-purple-400/50'
                           }`}
-                          onClick={() => setSelectedNews(article)}
                         >
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 className="text-white font-medium text-sm line-clamp-2">
-                              {article.title}
-                            </h4>
-                            <Badge 
-                              variant={article.processed ? 'default' : 'outline'}
-                              className="ml-2 flex-shrink-0"
-                            >
-                              {article.processed ? 'Published' : 'Draft'}
+                          <h4 className="text-white font-medium text-sm line-clamp-2 mb-1">
+                            {article.title}
+                          </h4>
+                          <div className="flex items-center justify-between text-xs">
+                            <Badge variant={article.processed ? "default" : "outline"} className="text-xs">
+                              {article.processed ? 'Опубликована' : 'Черновик'}
                             </Badge>
-                          </div>
-                          <div className="flex items-center justify-between text-xs text-gray-400">
-                            <span>{article.tags?.[0] || 'Без категории'} • {article.author || 'Неизвестен'}</span>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex gap-1">
                               {article.summary && <Badge variant="outline" className="text-xs">TL;DR</Badge>}
                               {article.audio_url && <Badge variant="outline" className="text-xs">Audio</Badge>}
                             </div>
                           </div>
                         </div>
                       ))}
-                      {articles.length === 0 && (
-                        <div className="text-center py-8 text-gray-400">
-                          Нет статей для отображения
-                        </div>
-                      )}
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* News Editor */}
-              {selectedNews && (
-                <Card className="bg-black/40 border-purple-500/30">
-                  <CardHeader>
-                    <CardTitle className="text-white flex items-center justify-between">
-                      Редактирование новости
-                      <div className="flex items-center space-x-2">
-                        <Button variant="ghost" size="sm" onClick={() => setIsEditing(!isEditing)}>
-                          {isEditing ? <EyeOff size={16} /> : <Edit size={16} />}
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-red-400">
-                          <Trash2 size={16} />
-                        </Button>
-                      </div>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {isEditing ? (
-                      <>
-                        <Input 
-                          defaultValue={selectedNews.title}
-                          className="bg-black/20 border-purple-500/30 text-white"
-                          placeholder="Заголовок"
-                        />
-                        <Input 
-                          defaultValue={selectedNews.author || ''}
-                          className="bg-black/20 border-purple-500/30 text-white"
-                          placeholder="Автор"
-                        />
-                        <Textarea 
-                          defaultValue={selectedNews.content}
-                          placeholder="Содержание статьи..."
-                          className="bg-black/20 border-purple-500/30 text-white min-h-32"
-                        />
-                        <Button className="bg-green-600 hover:bg-green-700">
-                          <Save className="mr-2" size={16} />
-                          Сохранить
-                        </Button>
-                      </>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="text-gray-300">
-                          <strong>Статус:</strong> {selectedNews.processed ? 'Опубликовано' : 'Черновик'}
-                        </div>
-                        <div className="text-gray-300">
-                          <strong>Автор:</strong> {selectedNews.author || 'Не указан'}
-                        </div>
-                        <div className="text-gray-300">
-                          <strong>Создано:</strong> {new Date(selectedNews.published_at).toLocaleDateString('ru-RU')}
-                        </div>
-                        
-                        {/* Publication Toggle */}
-                        <div className="flex items-center justify-between pt-4 border-t border-purple-500/20">
-                          <span className="text-gray-300">Опубликовать статью</span>
-                          <Switch 
-                            checked={selectedNews.processed}
-                            onCheckedChange={(checked) => handleToggleProcessed(selectedNews.id, checked)}
-                          />
-                        </div>
-                        
-                        {/* AI Tools */}
-                        <div className="space-y-3 pt-4 border-t border-purple-500/20">
-                          <h4 className="text-white font-medium">ИИ-инструменты</h4>
-                          
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <span className="text-gray-300">Генерация TL;DR</span>
-                              {selectedNews.summary && <p className="text-xs text-green-400">✓ Готово</p>}
-                            </div>
-                            <Button 
-                              size="sm" 
-                              disabled={isGenerating.tldr}
-                              onClick={() => handleGenerateTldr(selectedNews.id)}
-                              className="bg-blue-600 hover:bg-blue-700"
-                            >
-                              {isGenerating.tldr ? (
-                                <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                              ) : (
-                                <Wand2 size={16} />
-                              )}
-                            </Button>
-                          </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <span className="text-gray-300">Генерация аудио</span>
-                              {selectedNews.audio_url && <p className="text-xs text-green-400">✓ Готово</p>}
-                            </div>
-                            <Button 
-                              size="sm" 
-                              disabled={isGenerating.audio}
-                              onClick={() => handleGenerateAudio(selectedNews.id)}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              {isGenerating.audio ? (
-                                <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                              ) : (
-                                <Volume2 size={16} />
-                              )}
-                            </Button>
-                          </div>
-                          
-                          {/* Show generated summary */}
-                          {selectedNews.summary && (
-                            <div className="pt-2">
-                              <p className="text-xs text-gray-400 mb-1">Сгенерированное резюме:</p>
-                              <p className="text-sm text-gray-300 bg-black/20 p-2 rounded">{selectedNews.summary}</p>
-                            </div>
-                          )}
-                          
-                          {/* Audio player */}
-                          {selectedNews.audio_url && (
-                            <div className="pt-2">
-                              <p className="text-xs text-gray-400 mb-1">Аудиоверсия:</p>
-                              <audio controls className="w-full">
-                                <source src={selectedNews.audio_url} type="audio/mpeg" />
-                              </audio>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Publishing */}
-                        <div className="space-y-3 pt-4 border-t border-purple-500/20">
-                          <h4 className="text-white font-medium">Публикация</h4>
-                          
-                          <div className="grid grid-cols-2 gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => handlePublishToTelegraph(selectedNews.id)}
-                              className="border-orange-500/50 text-orange-300 hover:bg-orange-500/10"
-                            >
-                              Telegraph
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => handlePublishToNotion(selectedNews.id)}
-                              className="border-gray-500/50 text-gray-300 hover:bg-gray-500/10"
-                            >
-                              Notion
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
-              )}
-            </div>
-          </TabsContent>
+              </div>
 
-          <TabsContent value="podcasts">
+              {/* Article Editor */}
+              <div className="lg:col-span-2">
+                {selectedArticle ? (
+                  <Card className="bg-black/40 border-purple-500/30">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-white">Редактор статьи</CardTitle>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingArticle(editingArticle?.id === selectedArticle.id ? null : selectedArticle)}
+                            className="border-purple-500/50 text-purple-300"
+                          >
+                            {editingArticle?.id === selectedArticle.id ? <EyeOff size={14} /> : <Edit size={14} />}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => deleteArticle(selectedArticle.id)}
+                            className="border-red-500/50 text-red-300"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {editingArticle?.id === selectedArticle.id ? (
+                        <div className="space-y-4">
+                          <Input
+                            value={editingArticle.title}
+                            onChange={(e) => setEditingArticle({...editingArticle, title: e.target.value})}
+                            className="bg-black/20 border-purple-500/30 text-white"
+                            placeholder="Заголовок"
+                          />
+                          <Input
+                            value={editingArticle.author || ''}
+                            onChange={(e) => setEditingArticle({...editingArticle, author: e.target.value})}
+                            className="bg-black/20 border-purple-500/30 text-white"
+                            placeholder="Автор"
+                          />
+                          <Textarea
+                            value={editingArticle.summary || ''}
+                            onChange={(e) => setEditingArticle({...editingArticle, summary: e.target.value})}
+                            className="bg-black/20 border-purple-500/30 text-white"
+                            placeholder="Краткое описание"
+                            rows={3}
+                          />
+                          <Textarea
+                            value={editingArticle.content}
+                            onChange={(e) => setEditingArticle({...editingArticle, content: e.target.value})}
+                            className="bg-black/20 border-purple-500/30 text-white"
+                            placeholder="Содержание"
+                            rows={10}
+                          />
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <Switch
+                                checked={editingArticle.processed}
+                                onCheckedChange={(checked) => setEditingArticle({...editingArticle, processed: checked})}
+                              />
+                              <span className="text-gray-300">Опубликовать</span>
+                            </div>
+                            <Button onClick={() => updateArticle(editingArticle)} className="bg-green-600 hover:bg-green-700">
+                              <Save size={14} className="mr-2" />
+                              Сохранить
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="text-gray-300">
+                            <h3 className="text-white font-medium mb-2">{selectedArticle.title}</h3>
+                            <p><strong>Автор:</strong> {selectedArticle.author || 'Не указан'}</p>
+                            <p><strong>Дата:</strong> {new Date(selectedArticle.published_at).toLocaleDateString('ru-RU')}</p>
+                            <p><strong>Статус:</strong> {selectedArticle.processed ? 'Опубликована' : 'Черновик'}</p>
+                          </div>
+                          
+                          {selectedArticle.summary && (
+                            <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                              <h4 className="text-blue-300 font-medium mb-2">TL;DR:</h4>
+                              <p className="text-gray-300 text-sm">{selectedArticle.summary}</p>
+                            </div>
+                          )}
+
+                          <div className="space-y-3 pt-4 border-t border-purple-500/20">
+                            <h4 className="text-white font-medium">ИИ-инструменты</h4>
+                            
+                            <div className="grid grid-cols-2 gap-3">
+                              <Button
+                                size="sm"
+                                disabled={isGenerating.tldr}
+                                onClick={() => generateTldr(selectedArticle.id)}
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                {isGenerating.tldr ? (
+                                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                                ) : (
+                                  <Wand2 size={14} className="mr-2" />
+                                )}
+                                TL;DR
+                              </Button>
+                              
+                              <Button
+                                size="sm"
+                                disabled={isGenerating.audio}
+                                onClick={() => generateAudio(selectedArticle.id)}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                {isGenerating.audio ? (
+                                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                                ) : (
+                                  <Volume2 size={14} className="mr-2" />
+                                )}
+                                Аудио
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="bg-black/40 border-purple-500/30">
+                    <CardContent className="flex items-center justify-center h-64">
+                      <p className="text-gray-400">Выберите статью для редактирования</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Sources Tab */}
+          {activeTab === 'sources' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white">Источники новостей</h2>
+                <Badge className="bg-green-500/20 border-green-500/50 text-green-300">
+                  {sources.filter(s => s.is_active).length} активных
+                </Badge>
+              </div>
+              
+              {/* Add New Source */}
+              <Card className="bg-black/40 border-purple-500/30">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center">
+                    <Plus size={20} className="mr-2" />
+                    Добавить источник
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Input
+                      placeholder="Название"
+                      value={newSource.name}
+                      onChange={(e) => setNewSource({ ...newSource, name: e.target.value })}
+                      className="bg-black/20 border-purple-500/30 text-white"
+                    />
+                    <Input
+                      placeholder="URL"
+                      value={newSource.url}
+                      onChange={(e) => setNewSource({ ...newSource, url: e.target.value })}
+                      className="bg-black/20 border-purple-500/30 text-white"
+                    />
+                    <select
+                      value={newSource.source_type}
+                      onChange={(e) => setNewSource({ ...newSource, source_type: e.target.value })}
+                      className="bg-black/20 border border-purple-500/30 text-white rounded-md px-3 py-2"
+                    >
+                      <option value="rss">RSS</option>
+                      <option value="tech">Технологии</option>
+                      <option value="world">Мировые</option>
+                      <option value="business">Бизнес</option>
+                      <option value="science">Наука</option>
+                      <option value="russia">Россия</option>
+                      <option value="europe">Европа</option>
+                      <option value="asia">Азия</option>
+                    </select>
+                    <Button onClick={addSource} className="bg-green-600 hover:bg-green-700">
+                      Добавить
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Sources List */}
+              <div className="grid gap-4">
+                {sources.map((source) => (
+                  <Card key={source.id} className="bg-black/40 border-purple-500/30">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-white font-medium">{source.name}</h3>
+                          <p className="text-gray-400 text-sm truncate">{source.url}</p>
+                          <Badge variant="outline" className="mt-2 text-xs">
+                            {source.source_type}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              checked={source.is_active}
+                              onCheckedChange={(checked) => toggleSource(source.id, checked)}
+                            />
+                            <span className="text-sm text-gray-300">
+                              {source.is_active ? 'Активен' : 'Отключен'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Other tabs placeholder */}
+          {['users', 'stats', 'settings'].includes(activeTab) && (
             <div className="text-center py-12">
-              <h3 className="text-xl text-white mb-4">Управление подкастами</h3>
-              <p className="text-gray-400 mb-6">Функционал будет добавлен в следующих версиях</p>
-              <Button className="bg-purple-600 hover:bg-purple-700">
-                <Plus className="mr-2" size={16} />
-                Добавить подкаст
-              </Button>
+              <h2 className="text-2xl font-bold text-white mb-4">
+                {activeTab === 'users' && 'Управление пользователями'}
+                {activeTab === 'stats' && 'Статистика сайта'}
+                {activeTab === 'settings' && 'Настройки системы'}
+              </h2>
+              <p className="text-gray-400">Раздел в разработке</p>
             </div>
-          </TabsContent>
-
-          <TabsContent value="settings">
-            <Card className="bg-black/40 border-purple-500/30">
-              <CardHeader>
-                <CardTitle className="text-white">Настройки</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <h4 className="text-white font-medium">API Keys</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input 
-                      placeholder="OpenAI API Key"
-                      type="password"
-                      className="bg-black/20 border-purple-500/30 text-white"
-                    />
-                    <Input 
-                      placeholder="ElevenLabs API Key"
-                      type="password"
-                      className="bg-black/20 border-purple-500/30 text-white"
-                    />
-                    <Input 
-                      placeholder="Telegraph Token"
-                      type="password"
-                      className="bg-black/20 border-purple-500/30 text-white"
-                    />
-                    <Input 
-                      placeholder="Notion Token"
-                      type="password"
-                      className="bg-black/20 border-purple-500/30 text-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-white font-medium">Общие настройки</h4>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-300">Автоматическая генерация TL;DR</span>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-300">Автоматическая генерация аудио</span>
-                    <Switch />
-                  </div>
-                </div>
-
-                <Button className="bg-green-600 hover:bg-green-700">
-                  Сохранить настройки
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
       </div>
     </div>
   );

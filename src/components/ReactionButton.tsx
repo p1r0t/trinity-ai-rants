@@ -41,6 +41,20 @@ const ReactionButton = ({ articleId, type, user, onReaction }: ReactionButtonPro
 
   useEffect(() => {
     loadReactionData();
+    
+    // Listen for reaction updates from other buttons
+    const handleReactionUpdate = (event: CustomEvent) => {
+      const { articleId: updatedArticleId, userId } = event.detail;
+      if (updatedArticleId === articleId && userId === user?.id) {
+        loadReactionData();
+      }
+    };
+    
+    window.addEventListener('reactionUpdated', handleReactionUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('reactionUpdated', handleReactionUpdate as EventListener);
+    };
   }, [articleId, type, user]);
 
   const loadReactionData = async () => {
@@ -56,7 +70,7 @@ const ReactionButton = ({ articleId, type, user, onReaction }: ReactionButtonPro
 
       setCount(reactions?.length || 0);
 
-      // Check if current user has reacted
+      // Check if current user has reacted with this specific type
       if (user) {
         const userReaction = reactions?.find(r => r.user_id === user.id);
         setUserReacted(!!userReaction);
@@ -80,7 +94,7 @@ const ReactionButton = ({ articleId, type, user, onReaction }: ReactionButtonPro
 
     try {
       if (userReacted) {
-        // Remove reaction
+        // Remove current reaction
         const { error } = await supabase
           .from('reactions')
           .delete()
@@ -93,7 +107,14 @@ const ReactionButton = ({ articleId, type, user, onReaction }: ReactionButtonPro
         setUserReacted(false);
         setCount(prev => prev - 1);
       } else {
-        // Add reaction
+        // First, remove any existing reactions from this user for this article
+        await supabase
+          .from('reactions')
+          .delete()
+          .eq('article_id', articleId)
+          .eq('user_id', user.id);
+
+        // Then add the new reaction
         const { error } = await supabase
           .from('reactions')
           .insert({
@@ -110,6 +131,15 @@ const ReactionButton = ({ articleId, type, user, onReaction }: ReactionButtonPro
         // Show Trinity response when user reacts
         setShowTrinityResponse(true);
         onReaction?.(type);
+        
+        // Reload all reaction data to update other buttons
+        setTimeout(() => {
+          loadReactionData();
+          // Force refresh of other reaction buttons by dispatching custom event
+          window.dispatchEvent(new CustomEvent('reactionUpdated', { 
+            detail: { articleId, userId: user.id, newReactionType: type } 
+          }));
+        }, 100);
       }
     } catch (error) {
       console.error('Error handling reaction:', error);
