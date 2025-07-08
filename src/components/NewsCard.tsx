@@ -4,6 +4,7 @@ import { Calendar, User, Eye, Volume2, MessageSquare } from 'lucide-react';
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import ReactionButton from './ReactionButton';
 
 interface NewsCardProps {
   news: {
@@ -92,21 +93,27 @@ const NewsCard = ({ news }: NewsCardProps) => {
           </div>
         </div>
 
-        {/* Reactions */}
+        {/* Actions & Reactions */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button className="flex items-center space-x-1 text-gray-400 hover:text-blue-400 transition-colors">
-              <span>🤓</span>
-              <span className="text-xs">{news.reactions.smart}</span>
-            </button>
-            <button className="flex items-center space-x-1 text-gray-400 hover:text-yellow-400 transition-colors">
-              <span>😂</span>
-              <span className="text-xs">{news.reactions.funny}</span>
-            </button>
-            <button className="flex items-center space-x-1 text-gray-400 hover:text-red-400 transition-colors">
-              <span>💩</span>
-              <span className="text-xs">{news.reactions.trash}</span>
-            </button>
+          <div className="flex items-center space-x-2">
+            <ReactionButton 
+              emoji="🤓" 
+              count={news.reactions.smart} 
+              type="smart"
+              newsId={news.id}
+            />
+            <ReactionButton 
+              emoji="😂" 
+              count={news.reactions.funny} 
+              type="funny"
+              newsId={news.id}
+            />
+            <ReactionButton 
+              emoji="💩" 
+              count={news.reactions.trash} 
+              type="trash"
+              newsId={news.id}
+            />
           </div>
           
           <Link to={`/news/${news.id}`}>

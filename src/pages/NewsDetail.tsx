@@ -5,6 +5,8 @@ import { Calendar, User, Eye, Volume2, ArrowLeft, Play, Pause } from 'lucide-rea
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import AudioPlayer from '@/components/AudioPlayer';
+import ReactionButton from '@/components/ReactionButton';
 import { Separator } from "@/components/ui/separator";
 
 // Mock data - в реальном проекте будет API
@@ -136,29 +138,17 @@ const NewsDetail = () => {
               </Card>
 
               {/* Audio Player */}
-              {news.hasAudio && (
-                <Card className="bg-black/40 border-green-500/30 mb-8">
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <Button
-                          onClick={handleAudioToggle}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-                        </Button>
-                        <div>
-                          <div className="text-white font-medium">Аудиоверсия статьи</div>
-                          <div className="text-gray-400 text-sm">Длительность: ~5 минут</div>
-                        </div>
-                      </div>
-                      <div className="text-green-400 text-sm">
-                        Синтезировано с помощью ElevenLabs
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              <div className="mb-8">
+                <AudioPlayer 
+                  title={`Аудиоверсия: ${news.title}`}
+                  audioUrl={news.hasAudio ? news.audioUrl : undefined}
+                  isGenerating={false}
+                  onGenerate={() => {
+                    // В будущем здесь будет генерация через ElevenLabs
+                    console.log('Генерируем аудио...');
+                  }}
+                />
+              </div>
 
               {/* Article Content */}
               <Card className="bg-black/40 border-purple-500/30 mb-8">
