@@ -4,17 +4,20 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { Brain, Laugh, Trash2 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
+import TrinityReactionResponse from './TrinityReactionResponse';
 
 interface ReactionButtonProps {
   articleId: string;
   type: 'smart' | 'funny' | 'trash';
   user: User | null;
+  onReaction?: (type: 'smart' | 'funny' | 'trash') => void;
 }
 
-const ReactionButton = ({ articleId, type, user }: ReactionButtonProps) => {
+const ReactionButton = ({ articleId, type, user, onReaction }: ReactionButtonProps) => {
   const [count, setCount] = useState(0);
   const [userReacted, setUserReacted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showTrinityResponse, setShowTrinityResponse] = useState(false);
 
   const icons = {
     smart: Brain,
@@ -103,6 +106,10 @@ const ReactionButton = ({ articleId, type, user }: ReactionButtonProps) => {
 
         setUserReacted(true);
         setCount(prev => prev + 1);
+        
+        // Show Trinity response when user reacts
+        setShowTrinityResponse(true);
+        onReaction?.(type);
       }
     } catch (error) {
       console.error('Error handling reaction:', error);
@@ -117,17 +124,27 @@ const ReactionButton = ({ articleId, type, user }: ReactionButtonProps) => {
   };
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={handleReaction}
-      disabled={loading}
-      className={`flex items-center space-x-1 ${colors[type]} ${userReacted ? 'bg-white/10' : ''}`}
-    >
-      <Icon size={16} />
-      <span className="text-xs">{count}</span>
-      <span className="hidden sm:inline text-xs">{labels[type]}</span>
-    </Button>
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleReaction}
+        disabled={loading}
+        className={`flex items-center space-x-1 ${colors[type]} ${userReacted ? 'bg-white/10' : ''}`}
+      >
+        <Icon size={16} />
+        <span className="text-xs">{count}</span>
+        <span className="hidden sm:inline text-xs">{labels[type]}</span>
+      </Button>
+      
+      {showTrinityResponse && (
+        <TrinityReactionResponse
+          reactionType={type}
+          show={showTrinityResponse}
+          onHide={() => setShowTrinityResponse(false)}
+        />
+      )}
+    </>
   );
 };
 

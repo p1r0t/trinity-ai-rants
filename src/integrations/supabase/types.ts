@@ -264,6 +264,38 @@ export type Database = {
         }
         Relationships: []
       }
+      trinity_comments: {
+        Row: {
+          article_id: string
+          comment: string
+          created_at: string
+          id: string
+          mood: string
+        }
+        Insert: {
+          article_id: string
+          comment: string
+          created_at?: string
+          id?: string
+          mood: string
+        }
+        Update: {
+          article_id?: string
+          comment?: string
+          created_at?: string
+          id?: string
+          mood?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trinity_comments_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -14,6 +14,8 @@ import MobileMenu from "@/components/MobileMenu";
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SearchBar } from '@/components/SearchBar';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import TrinityAvatar from '@/components/TrinityAvatar';
+import TrinityReactionResponse from '@/components/TrinityReactionResponse';
 import { Calendar, TrendingUp, Clock, User, LogOut, Settings, Headphones } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -240,6 +242,9 @@ const Index = () => {
       </nav>
 
       <div className="container mx-auto px-4 py-8 safe-left safe-right">
+        {/* Trinity Introduction */}
+        <TrinityAvatar compact={false} />
+        
         {/* Hero Section */}
         <div className="mb-8 text-center">
           <h2 className="text-4xl font-bold text-white mb-4">

@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import AudioPlayer from '@/components/AudioPlayer';
 import ReactionButton from '@/components/ReactionButton';
+import TrinityAvatar from '@/components/TrinityAvatar';
+import ClickbaitButton from '@/components/ClickbaitButton';
+import VoiceSelector from '@/components/VoiceSelector';
 import { Separator } from "@/components/ui/separator";
 
 // Mock data - в реальном проекте будет API
@@ -90,6 +93,9 @@ const NewsDetail = () => {
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
+          {/* Trinity Avatar */}
+          <TrinityAvatar articleId={id} />
+          
           {/* Article Header */}
           <div className="mb-8">
             <div className="flex items-center space-x-4 mb-4">
@@ -104,9 +110,10 @@ const NewsDetail = () => {
               )}
             </div>
             
-            <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
-              {news.title}
-            </h1>
+            <ClickbaitButton 
+              originalTitle={news.title} 
+              articleId={id || '1'} 
+            />
             
             <div className="flex items-center space-x-6 text-gray-400 mb-6">
               <div className="flex items-center">
@@ -195,6 +202,12 @@ const NewsDetail = () => {
 
             {/* Sidebar */}
             <div className="space-y-6">
+              {/* Voice Selector */}
+              <VoiceSelector 
+                articleTitle={news.title}
+                articleContent={news.content}
+              />
+              
               {/* Related Articles */}
               <Card className="bg-black/40 border-purple-500/30">
                 <CardHeader>
