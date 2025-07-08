@@ -1,60 +1,18 @@
-
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Calendar, User, Tag, TrendingUp, Headphones, Settings } from 'lucide-react';
-import { Button } from "@/components/ui/button";
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import NewsCard from '@/components/NewsCard';
-import FilterBar from '@/components/FilterBar';
-import StatsWidget from '@/components/StatsWidget';
+import { Button } from "@/components/ui/button";
+import NewsCard from "@/components/NewsCard";
+import FilterBar from "@/components/FilterBar";
+import StatsWidget from "@/components/StatsWidget";
+import ReactionButton from "@/components/ReactionButton";
+import AudioPlayer from "@/components/AudioPlayer";
+import { Calendar, TrendingUp, Clock, User, LogOut, Settings, Headphones } from 'lucide-react';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 
-// Mock data - в реальном проекте будет API
-const mockNews = [
-  {
-    id: 1,
-    title: "OpenAI снова 'революционизирует' мир: GPT-5 теперь умеет делать кофе",
-    summary: "Очередной breakthrough от создателей ChatGPT. Теперь ИИ не только пишет код, но и якобы варит идеальный эспрессо. Правда, пока только в симуляции.",
-    content: "Компания OpenAI представила новую версию своей языковой модели GPT-5, которая теперь может не только генерировать текст, но и управлять кофемашинами. По словам представителей компании, это 'новый этап развития мультимодального ИИ'...",
-    category: "Breakthrough",
-    author: "AI Skeptic",
-    date: "2025-01-07",
-    views: 1337,
-    reactions: { smart: 42, funny: 156, trash: 23 },
-    hasAudio: true,
-    tldr: "OpenAI научила GPT-5 варить кофе. Инвесторы в экстазе, кофемашины в панике.",
-    image: "/placeholder.svg"
-  },
-  {
-    id: 2,
-    title: "Google Bard переименован в Gemini (опять): теперь это 'настоящий' конкурент ChatGPT",
-    summary: "Google в очередной раз меняет название своего чат-бота и обещает, что на этот раз точно все будет по-другому. Где-то мы это уже слышали...",
-    content: "Корпорация Google объявила о кардинальном обновлении своего ИИ-ассистента, который теперь называется Gemini Ultra Pro Max (шутка, просто Gemini). Компания утверждает, что новая модель превосходит GPT-4 по всем параметрам...",
-    category: "Corporate Drama",
-    author: "Tech Cynic",
-    date: "2025-01-06",
-    views: 892,
-    reactions: { smart: 28, funny: 203, trash: 45 },
-    hasAudio: false,
-    tldr: "Google снова переименовал свой ИИ и снова обещает победить OpenAI. Спойлер: не победит.",
-    image: "/placeholder.svg"
-  },
-  {
-    id: 3,
-    title: "Meta выпустила LLaMA 3: 'Открытый' ИИ с закрытыми исходниками",
-    summary: "Цукерберг представил новую модель, которая якобы 'открытая', но исходники по-прежнему недоступны. Маркетинговый отдел Meta снова в ударе.",
-    content: "Компания Meta (бывший Facebook) анонсировала релиз LLaMA 3, позиционируя его как 'наиболее открытую' языковую модель на рынке. Однако полные исходные коды модели остаются недоступными для широкой публики...",
-    category: "Open Source Drama",
-    author: "Code Warrior",
-    date: "2025-01-05",
-    views: 2156,
-    reactions: { smart: 89, funny: 67, trash: 134 },
-    hasAudio: true,
-    tldr: "Meta называет свой ИИ 'открытым', но код все еще спрятан. Классический Цукерберг.",
-    image: "/placeholder.svg"
-  }
-];
-
+// Mock data for podcasts
 const mockPodcasts = [
   {
     id: 1,
@@ -72,89 +30,267 @@ const mockPodcasts = [
   }
 ];
 
+interface Article {
+  id: string;
+  title: string;
+  content: string;
+  author: string | null;
+  published_at: string;
+  summary: string | null;
+  audio_url: string | null;
+  tags: string[] | null;
+  processed: boolean;
+}
+
 const Index = () => {
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [filteredNews, setFilteredNews] = useState(mockNews);
+  const navigate = useNavigate();
+  const [selectedCategory, setSelectedCategory] = useState("Все");
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [showAdminAccess, setShowAdminAccess] = useState(false);
 
   useEffect(() => {
-    if (selectedCategory === 'all') {
-      setFilteredNews(mockNews);
-    } else {
-      setFilteredNews(mockNews.filter(news => news.category === selectedCategory));
-    }
-  }, [selectedCategory]);
+    loadArticles();
+    checkAuth();
 
-  const categories = ['all', 'Breakthrough', 'Corporate Drama', 'Open Source Drama', 'Hype', 'Reality Check'];
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        checkUserRole(session.user.id);
+      } else {
+        setUserRole(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const checkAuth = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setUser(user);
+    if (user) {
+      checkUserRole(user.id);
+    }
+  };
+
+  const checkUserRole = async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+      
+      setUserRole(data?.role || null);
+    } catch (error) {
+      console.error('Error checking user role:', error);
+    }
+  };
+
+  const loadArticles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('articles')
+        .select('*')
+        .eq('processed', true)
+        .order('published_at', { ascending: false });
+      
+      if (error) throw error;
+      setArticles(data || []);
+    } catch (error) {
+      console.error('Error loading articles:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  // Secret admin access - triple click on logo
+  const handleLogoClick = () => {
+    const now = Date.now();
+    const clicks = JSON.parse(localStorage.getItem('logoClicks') || '[]');
+    clicks.push(now);
+    
+    // Keep only clicks from last 2 seconds
+    const recentClicks = clicks.filter((click: number) => now - click < 2000);
+    localStorage.setItem('logoClicks', JSON.stringify(recentClicks));
+    
+    if (recentClicks.length >= 3 && userRole === 'admin') {
+      setShowAdminAccess(true);
+      setTimeout(() => setShowAdminAccess(false), 5000);
+    }
+  };
+
+  const categories = ["Все", "Breakthrough", "Corporate Drama", "Hype", "Reality Check"];
+  const filteredArticles = selectedCategory === "Все" 
+    ? articles 
+    : articles.filter(article => article.tags?.includes(selectedCategory));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Header */}
-      <header className="border-b border-purple-500/20 bg-black/30 backdrop-blur-sm sticky top-0 z-50">
+      <nav className="bg-black/30 backdrop-blur-sm border-b border-purple-500/20">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                Trinity AI
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-8">
+              <h1 
+                className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent cursor-pointer"
+                onClick={handleLogoClick}
+              >
+                Trinity AI News
               </h1>
-              <Badge variant="outline" className="border-purple-500/50 text-purple-300">
-                Нейро-дайджест
-              </Badge>
+              <div className="hidden md:flex space-x-6">
+                <Link to="/" className="text-gray-300 hover:text-white transition-colors">
+                  Главная
+                </Link>
+                <Link to="/categories" className="text-gray-300 hover:text-white transition-colors">
+                  Категории
+                </Link>
+                <Link to="/podcasts" className="text-gray-300 hover:text-white transition-colors">
+                  Подкасты
+                </Link>
+                <Link to="/stats" className="text-gray-300 hover:text-white transition-colors">
+                  Статистика
+                </Link>
+                {showAdminAccess && userRole === 'admin' && (
+                  <Link 
+                    to="/admin" 
+                    className="text-orange-300 hover:text-orange-200 transition-colors animate-pulse"
+                  >
+                    🔧 Управление
+                  </Link>
+                )}
+              </div>
             </div>
-            <nav className="hidden md:flex items-center space-x-6">
-              <Link to="/" className="text-gray-300 hover:text-purple-400 transition-colors">
-                Новости
-              </Link>
-              <Link to="/podcasts" className="text-gray-300 hover:text-purple-400 transition-colors">
-                Подкасты
-              </Link>
-              <Link to="/categories" className="text-gray-300 hover:text-purple-400 transition-colors">
-                Категории
-              </Link>
-              <Link to="/stats" className="text-gray-300 hover:text-purple-400 transition-colors">
-                Статистика
-              </Link>
-              <Link to="/admin" className="text-gray-400 hover:text-purple-400 transition-colors">
-                <Settings size={20} />
-              </Link>
-            </nav>
+            
+            <div className="flex items-center space-x-4">
+              {user ? (
+                <>
+                  <span className="text-sm text-gray-300">
+                    Привет, {user.email}
+                  </span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={handleSignOut}
+                    className="text-gray-300 hover:text-white"
+                  >
+                    <LogOut size={16} />
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/auth')}
+                  className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10"
+                >
+                  <User size={16} className="mr-2" />
+                  Войти
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-      </header>
+      </nav>
 
       <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            {/* Hero Section */}
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-white mb-4">
-                Саркастичные обзоры мира ИИ
-              </h2>
-              <p className="text-gray-400 text-lg">
-                Потому что кто-то должен говорить правду о всех этих "революционных" breakthrough'ах
-              </p>
-            </div>
+        {/* Hero Section */}
+        <div className="mb-8 text-center">
+          <h2 className="text-4xl font-bold text-white mb-4">
+            Саркастичные обзоры мира ИИ
+          </h2>
+          <p className="text-gray-400 text-lg">
+            Потому что кто-то должен говорить правду о всех этих "революционных" breakthrough'ах
+          </p>
+        </div>
 
-            {/* Filter Bar */}
+        {/* Filter Bar */}
+        <div className="mb-8">
           <FilterBar 
             categories={categories}
             selectedCategory={selectedCategory}
             onCategoryChange={setSelectedCategory}
           />
+        </div>
 
-            {/* News Feed */}
-            <div className="space-y-6">
-              {filteredNews.map((news) => (
-                <NewsCard key={news.id} news={news} />
-              ))}
-            </div>
-
-            {/* Load More */}
-            <div className="text-center mt-8">
-              <Button variant="outline" className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10">
-                Загрузить еще сарказма
-              </Button>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p className="text-gray-400">Загрузка новостей...</p>
+              </div>
+            ) : filteredArticles.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-400 mb-4">Нет новостей в выбранной категории</p>
+                <Button 
+                  onClick={() => setSelectedCategory("Все")}
+                  variant="outline"
+                  className="border-purple-500/50 text-purple-300"
+                >
+                  Показать все новости
+                </Button>
+              </div>
+            ) : (
+              filteredArticles.map((article) => (
+                <Card key={article.id} className="bg-black/40 border-purple-500/30 hover:border-purple-400/50 transition-colors">
+                  <CardHeader>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center space-x-2">
+                        {article.tags?.map((tag) => (
+                          <Badge key={tag} variant="outline" className="text-xs">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="text-sm text-gray-400 flex items-center space-x-2">
+                        <Calendar size={14} />
+                        <span>{new Date(article.published_at).toLocaleDateString('ru-RU')}</span>
+                      </div>
+                    </div>
+                    <CardTitle className="text-white hover:text-purple-300 transition-colors">
+                      <Link to={`/news/${article.id}`}>
+                        {article.title}
+                      </Link>
+                    </CardTitle>
+                    {article.summary && (
+                      <p className="text-gray-300 text-sm leading-relaxed">
+                        {article.summary}
+                      </p>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4 text-sm text-gray-400">
+                        <div className="flex items-center space-x-1">
+                          <Clock size={14} />
+                          <span>3 мин</span>
+                        </div>
+                        <span>• {article.author || 'Автор неизвестен'}</span>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <ReactionButton articleId={article.id} type="smart" user={user} />
+                        <ReactionButton articleId={article.id} type="funny" user={user} />
+                        <ReactionButton articleId={article.id} type="trash" user={user} />
+                      </div>
+                    </div>
+                    
+                    {article.audio_url && (
+                      <div className="mt-4">
+                        <AudioPlayer audioUrl={article.audio_url} title={article.title} />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
 
           {/* Sidebar */}

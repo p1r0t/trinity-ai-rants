@@ -141,12 +141,7 @@ const NewsDetail = () => {
               <div className="mb-8">
                 <AudioPlayer 
                   title={`Аудиоверсия: ${news.title}`}
-                  audioUrl={news.hasAudio ? news.audioUrl : undefined}
-                  isGenerating={false}
-                  onGenerate={() => {
-                    // В будущем здесь будет генерация через ElevenLabs
-                    console.log('Генерируем аудио...');
-                  }}
+                  audioUrl={news.hasAudio ? news.audioUrl : ''}
                 />
               </div>
 

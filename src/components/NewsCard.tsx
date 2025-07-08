@@ -97,22 +97,19 @@ const NewsCard = ({ news }: NewsCardProps) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <ReactionButton 
-              emoji="🤓" 
-              count={news.reactions.smart} 
+              articleId={news.id.toString()} 
               type="smart"
-              newsId={news.id}
+              user={null}
             />
             <ReactionButton 
-              emoji="😂" 
-              count={news.reactions.funny} 
+              articleId={news.id.toString()} 
               type="funny"
-              newsId={news.id}
+              user={null}
             />
             <ReactionButton 
-              emoji="💩" 
-              count={news.reactions.trash} 
+              articleId={news.id.toString()} 
               type="trash"
-              newsId={news.id}
+              user={null}
             />
           </div>
           
