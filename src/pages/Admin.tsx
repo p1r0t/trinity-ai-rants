@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Plus, Edit, Trash2, Volume2, FileText, Send, 
-  Settings, Eye, EyeOff, Wand2, Save 
+  Settings, Eye, EyeOff, Wand2, Save, LogOut 
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
+import { User } from '@supabase/supabase-js';
 
 // Types
 interface Article {
@@ -31,20 +32,75 @@ interface Article {
 
 const Admin = () => {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [credentials, setCredentials] = useState({ username: '', password: '' });
+  const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [selectedNews, setSelectedNews] = useState<Article | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isGenerating, setIsGenerating] = useState({ tldr: false, audio: false });
   const [loading, setLoading] = useState(true);
 
-  // Load articles when authenticated
+  // Check authentication and user role
   useEffect(() => {
-    if (isAuthenticated) {
-      loadArticles();
+    checkAuth();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        checkUserRole(session.user.id);
+      } else {
+        setUser(null);
+        setUserRole(null);
+        navigate('/auth');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const checkAuth = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/auth');
+        return;
+      }
+      
+      setUser(user);
+      await checkUserRole(user.id);
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      navigate('/auth');
     }
-  }, [isAuthenticated]);
+  };
+
+  const checkUserRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+      
+      if (error) throw error;
+      
+      if (data.role !== 'admin') {
+        toast({
+          title: "Доступ запрещен",
+          description: "У вас нет прав администратора",
+          variant: "destructive",
+        });
+        navigate('/');
+        return;
+      }
+      
+      setUserRole(data.role);
+      loadArticles();
+    } catch (error) {
+      console.error('Error checking user role:', error);
+      navigate('/auth');
+    }
+  };
 
   const loadArticles = async () => {
     try {
@@ -65,24 +121,6 @@ const Admin = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Mock authentication
-    if (credentials.username === 'admin' && credentials.password === 'trinity2025') {
-      setIsAuthenticated(true);
-      toast({
-        title: "Добро пожаловать!",
-        description: "Вы успешно вошли в админку Trinity AI",
-      });
-    } else {
-      toast({
-        title: "Ошибка авторизации",
-        description: "Неверный логин или пароль",
-        variant: "destructive",
-      });
     }
   };
 
@@ -192,40 +230,23 @@ const Admin = () => {
     }
   };
 
-  if (!isAuthenticated) {
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate('/auth');
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  };
+
+  // Show loading or redirect if not authenticated
+  if (!user || userRole !== 'admin') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <Card className="w-full max-w-md bg-black/40 border-purple-500/30">
-          <CardHeader>
-            <CardTitle className="text-center text-white">
-              Админка Trinity AI
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <Input
-                  placeholder="Логин"
-                  value={credentials.username}
-                  onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
-                  className="bg-black/20 border-purple-500/30 text-white"
-                />
-              </div>
-              <div>
-                <Input
-                  type="password"
-                  placeholder="Пароль"
-                  value={credentials.password}
-                  onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                  className="bg-black/20 border-purple-500/30 text-white"
-                />
-              </div>
-              <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700">
-                Войти
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-white">Проверка доступа...</p>
+        </div>
       </div>
     );
   }
@@ -240,10 +261,14 @@ const Admin = () => {
               Trinity AI Admin
             </h1>
             <div className="flex items-center space-x-4">
+              <span className="text-sm text-purple-300">
+                Добро пожаловать, {user.email}
+              </span>
               <Button variant="outline" onClick={() => navigate('/')} className="border-purple-500/50 text-purple-300">
                 Назад к сайту
               </Button>
-              <Button variant="outline" onClick={() => setIsAuthenticated(false)} className="border-red-500/50 text-red-300">
+              <Button variant="outline" onClick={handleSignOut} className="border-red-500/50 text-red-300">
+                <LogOut size={16} className="mr-2" />
                 Выйти
               </Button>
             </div>

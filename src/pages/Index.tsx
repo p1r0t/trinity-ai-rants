@@ -136,11 +136,11 @@ const Index = () => {
             </div>
 
             {/* Filter Bar */}
-            <FilterBar 
-              categories={categories}
-              selectedCategory={selectedCategory}
-              onCategoryChange={setSelectedCategory}
-            />
+          <FilterBar 
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+          />
 
             {/* News Feed */}
             <div className="space-y-6">
