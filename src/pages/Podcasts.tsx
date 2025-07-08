@@ -1,58 +1,57 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Play, Pause, Download, Calendar, Clock, TrendingUp } from 'lucide-react';
+import { Play, Pause, Download, Calendar, Clock, TrendingUp, ArrowLeft } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from '@/components/ThemeToggle';
+import TrinityAvatar from '@/components/TrinityAvatar';
+import { supabase } from "@/integrations/supabase/client";
 
-const mockPodcasts = [
-  {
-    id: 1,
-    title: "Подкаст #15: Когда ИИ заменит подкастеров?",
-    description: "Обсуждаем парадокс: можем ли мы критиковать ИИ, если сами используем его для создания контента? Ироничный взгляд на будущее медиа.",
-    duration: "28:42",
-    date: "2025-01-07",
-    plays: 445,
-    audioUrl: "/podcast-15.mp3",
-    category: "Meta"
-  },
-  {
-    id: 2,
-    title: "Подкаст #14: Anthropic vs OpenAI - битва за этичность",
-    description: "Кто более этичен: компания, которая говорит о безопасности, или та, которая просто делает продукт? Анализируем маркетинговые стратегии.",
-    duration: "32:15",
-    date: "2025-01-03",
-    plays: 623,
-    audioUrl: "/podcast-14.mp3",
-    category: "Corporate Drama"
-  },
-  {
-    id: 3,
-    title: "Подкаст #13: Google снова 'убивает' свой продукт",
-    description: "История о том, как Google Bard стал Gemini, а потом... мы уже сбились со счета. Классическое Google-кладбище пополняется.",
-    duration: "24:18",
-    date: "2024-12-28",
-    plays: 892,
-    audioUrl: "/podcast-13.mp3",
-    category: "Corporate Drama"
-  },
-  {
-    id: 4,
-    title: "Подкаст #12: 2024 год в ИИ - итоги хайпа",
-    description: "Подводим итоги года в мире искусственного интеллекта. Сколько раз нам обещали AGI и почему мы до сих пор ждем?",
-    duration: "45:30",
-    date: "2024-12-25",
-    plays: 1234,
-    audioUrl: "/podcast-12.mp3",
-    category: "Year Review"
-  }
-];
+interface Podcast {
+  id: string;
+  title: string;
+  description: string | null;
+  duration: number;
+  category: string | null;
+  published_at: string;
+  play_count: number;
+  audio_url: string | null;
+}
 
 const Podcasts = () => {
-  const [currentPlaying, setCurrentPlaying] = useState<number | null>(null);
+  const [podcasts, setPodcasts] = useState<Podcast[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPlaying, setCurrentPlaying] = useState<string | null>(null);
 
-  const handlePlayPause = (podcastId: number) => {
+  useEffect(() => {
+    loadPodcasts();
+  }, []);
+
+  const loadPodcasts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('podcasts')
+        .select('*')
+        .order('published_at', { ascending: false });
+      
+      if (error) throw error;
+      setPodcasts(data || []);
+    } catch (error) {
+      console.error('Error loading podcasts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const handlePlayPause = (podcastId: string) => {
     if (currentPlaying === podcastId) {
       setCurrentPlaying(null);
     } else {
@@ -103,6 +102,9 @@ const Podcasts = () => {
       </header>
 
       <div className="container mx-auto px-4 py-8">
+        {/* Trinity Introduction */}
+        <TrinityAvatar compact={false} />
+        
         <div className="max-w-4xl mx-auto">
           {/* Hero Section */}
           <div className="text-center mb-12">
@@ -112,101 +114,124 @@ const Podcasts = () => {
             <p className="text-xl text-gray-400 mb-6">
               Еженедельные обзоры мира ИИ с изрядной долей сарказма
             </p>
-            <div className="flex items-center justify-center space-x-8 text-sm text-gray-500">
-              <div className="flex items-center">
-                <TrendingUp size={16} className="mr-2" />
-                {mockPodcasts.length} эпизодов
+            {!loading && (
+              <div className="flex items-center justify-center space-x-8 text-sm text-gray-500">
+                <div className="flex items-center">
+                  <TrendingUp size={16} className="mr-2" />
+                  {podcasts.length} эпизодов
+                </div>
+                <div className="flex items-center">
+                  <Play size={16} className="mr-2" />
+                  {podcasts.reduce((acc, p) => acc + p.play_count, 0).toLocaleString()} прослушиваний
+                </div>
               </div>
-              <div className="flex items-center">
-                <Play size={16} className="mr-2" />
-                {mockPodcasts.reduce((acc, p) => acc + p.plays, 0).toLocaleString()} прослушиваний
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Podcasts List */}
           <div className="space-y-6">
-            {mockPodcasts.map((podcast) => (
-              <Card key={podcast.id} className="bg-black/40 border-purple-500/30 hover:border-purple-400/50 transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="flex items-start space-x-6">
-                    {/* Play Button */}
-                    <Button
-                      onClick={() => handlePlayPause(podcast.id)}
-                      size="lg"
-                      className={`flex-shrink-0 w-16 h-16 rounded-full ${
-                        currentPlaying === podcast.id 
-                          ? 'bg-red-600 hover:bg-red-700' 
-                          : 'bg-green-600 hover:bg-green-700'
-                      }`}
-                    >
-                      {currentPlaying === podcast.id ? (
-                        <Pause size={24} />
-                      ) : (
-                        <Play size={24} className="ml-1" />
-                      )}
-                    </Button>
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p className="text-gray-400">Загрузка подкастов...</p>
+              </div>
+            ) : podcasts.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-400 mb-4">Подкасты скоро появятся!</p>
+                <p className="text-sm text-gray-500">Trinity готовит аудио-контент для вас</p>
+              </div>
+            ) : (
+              podcasts.map((podcast) => (
+                <Card key={podcast.id} className="bg-black/40 border-purple-500/30 hover:border-purple-400/50 transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="flex items-start space-x-6">
+                      {/* Play Button */}
+                      <Button
+                        onClick={() => handlePlayPause(podcast.id)}
+                        size="lg"
+                        className={`flex-shrink-0 w-16 h-16 rounded-full ${
+                          currentPlaying === podcast.id 
+                            ? 'bg-red-600 hover:bg-red-700' 
+                            : 'bg-green-600 hover:bg-green-700'
+                        }`}
+                      >
+                        {currentPlaying === podcast.id ? (
+                          <Pause size={24} />
+                        ) : (
+                          <Play size={24} className="ml-1" />
+                        )}
+                      </Button>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="text-xl font-bold text-white mb-2">
-                            {podcast.title}
-                          </h3>
-                          <Badge variant="outline" className="border-purple-500/50 text-purple-300 text-xs">
-                            {podcast.category}
-                          </Badge>
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h3 className="text-xl font-bold text-white mb-2">
+                              {podcast.title}
+                            </h3>
+                            {podcast.category && (
+                              <Badge variant="outline" className="border-purple-500/50 text-purple-300 text-xs">
+                                {podcast.category}
+                              </Badge>
+                            )}
+                          </div>
+                          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-purple-300">
+                            <Download size={16} />
+                          </Button>
                         </div>
-                        <Button variant="ghost" size="sm" className="text-gray-400 hover:text-purple-300">
-                          <Download size={16} />
-                        </Button>
-                      </div>
-                      
-                      <p className="text-gray-400 mb-4 line-clamp-2">
-                        {podcast.description}
-                      </p>
-                      
-                      <div className="flex items-center space-x-6 text-sm text-gray-500">
-                        <div className="flex items-center">
-                          <Calendar size={14} className="mr-2" />
-                          {formatDate(podcast.date)}
-                        </div>
-                        <div className="flex items-center">
-                          <Clock size={14} className="mr-2" />
-                          {podcast.duration}
-                        </div>
-                        <div className="flex items-center">
-                          <Play size={14} className="mr-2" />
-                          {podcast.plays} прослушиваний
+                        
+                        {podcast.description && (
+                          <p className="text-gray-400 mb-4 line-clamp-2">
+                            {podcast.description}
+                          </p>
+                        )}
+                        
+                        <div className="flex items-center space-x-6 text-sm text-gray-500">
+                          <div className="flex items-center">
+                            <Calendar size={14} className="mr-2" />
+                            {formatDate(podcast.published_at)}
+                          </div>
+                          <div className="flex items-center">
+                            <Clock size={14} className="mr-2" />
+                            {formatDuration(podcast.duration)}
+                          </div>
+                          <div className="flex items-center">
+                            <Play size={14} className="mr-2" />
+                            {podcast.play_count} прослушиваний
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Progress Bar (показывается только для воспроизводящегося подкаста) */}
-                  {currentPlaying === podcast.id && (
-                    <div className="mt-4 pt-4 border-t border-purple-500/20">
-                      <div className="flex items-center space-x-4">
-                        <span className="text-xs text-gray-400">02:15</span>
-                        <div className="flex-1 bg-gray-700 rounded-full h-2">
-                          <div className="bg-green-500 h-2 rounded-full w-1/4"></div>
+                    {/* Progress Bar (показывается только для воспроизводящегося подкаста) */}
+                    {currentPlaying === podcast.id && (
+                      <div className="mt-4 pt-4 border-t border-purple-500/20">
+                        <div className="flex items-center space-x-4">
+                          <span className="text-xs text-gray-400">02:15</span>
+                          <div className="flex-1 bg-gray-700 rounded-full h-2">
+                            <div className="bg-green-500 h-2 rounded-full w-1/4"></div>
+                          </div>
+                          <span className="text-xs text-gray-400">{formatDuration(podcast.duration)}</span>
                         </div>
-                        <span className="text-xs text-gray-400">{podcast.duration}</span>
+                        <p className="text-xs text-gray-400 mt-2 text-center">
+                          Аудио будет доступно после интеграции с сервисом генерации
+                        </p>
                       </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
 
           {/* Load More */}
-          <div className="text-center mt-8">
-            <Button variant="outline" className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10">
-              Загрузить еще подкасты
-            </Button>
-          </div>
+          {!loading && podcasts.length > 0 && (
+            <div className="text-center mt-8">
+              <Button variant="outline" className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10">
+                Загрузить еще подкасты
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
