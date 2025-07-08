@@ -80,7 +80,7 @@ const Index = () => {
     if (selectedCategory === 'all') {
       setFilteredNews(mockNews);
     } else {
-      setFiltereredNews(mockNews.filter(news => news.category === selectedCategory));
+      setFilteredNews(mockNews.filter(news => news.category === selectedCategory));
     }
   }, [selectedCategory]);
 
