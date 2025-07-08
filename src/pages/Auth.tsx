@@ -162,12 +162,6 @@ const Auth = () => {
     }
   };
 
-  const handleAdminLogin = () => {
-    setLoginData({
-      email: 'admin@trinity.ai',
-      password: 'administrator'
-    });
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
@@ -219,19 +213,6 @@ const Auth = () => {
                   {loading ? 'Вход...' : 'Войти'}
                 </Button>
               </form>
-              
-              <div className="mt-4 pt-4 border-t border-purple-500/20">
-                <Button 
-                  onClick={handleAdminLogin}
-                  variant="outline"
-                  className="w-full border-orange-500/50 text-orange-300 hover:bg-orange-500/10"
-                >
-                  Быстрый вход админа
-                </Button>
-                <p className="text-xs text-gray-500 mt-2 text-center">
-                  admin@trinity.ai / administrator
-                </p>
-              </div>
             </TabsContent>
 
             <TabsContent value="register" className="space-y-4">

@@ -11,6 +11,9 @@ import ReactionButton from "@/components/ReactionButton";
 import AudioPlayer from "@/components/AudioPlayer";
 import ShareButton from "@/components/ShareButton";
 import MobileMenu from "@/components/MobileMenu";
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { SearchBar } from '@/components/SearchBar';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { Calendar, TrendingUp, Clock, User, LogOut, Settings, Headphones } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -48,10 +51,12 @@ const Index = () => {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState("Все");
   const [articles, setArticles] = useState<Article[]>([]);
+  const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [showAdminAccess, setShowAdminAccess] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadArticles();
@@ -101,11 +106,31 @@ const Index = () => {
       
       if (error) throw error;
       setArticles(data || []);
+      setFilteredArticles(data || []);
     } catch (error) {
       console.error('Error loading articles:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setFilteredArticles(articles);
+      return;
+    }
+
+    const filtered = articles.filter(article =>
+      article.title.toLowerCase().includes(query.toLowerCase()) ||
+      article.content.toLowerCase().includes(query.toLowerCase()) ||
+      article.summary?.toLowerCase().includes(query.toLowerCase())
+    );
+    setFilteredArticles(filtered);
+  };
+
+  const handleRefresh = async () => {
+    await loadArticles();
   };
 
   const handleSignOut = async () => {
@@ -129,12 +154,13 @@ const Index = () => {
   };
 
   const categories = ["Все", "Breakthrough", "Corporate Drama", "Hype", "Reality Check"];
-  const filteredArticles = selectedCategory === "Все" 
-    ? articles 
-    : articles.filter(article => article.tags?.includes(selectedCategory));
+  const displayedArticles = selectedCategory === "Все" 
+    ? filteredArticles 
+    : filteredArticles.filter(article => article.tags?.includes(selectedCategory));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 safe-top safe-bottom">
+    <PullToRefresh onRefresh={handleRefresh}>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 safe-top safe-bottom">
       {/* Header */}
       <nav className="bg-black/30 backdrop-blur-sm border-b border-purple-500/20 sticky top-0 z-50 safe-left safe-right">
         <div className="container mx-auto px-4 py-4">
@@ -166,11 +192,16 @@ const Index = () => {
                   >
                     🔧 Управление
                   </Link>
-                )}
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
+                 )}
+               </div>
+             </div>
+             
+             <div className="flex items-center space-x-2">
+               <SearchBar onSearch={handleSearch} className="hidden md:block" />
+               <ThemeToggle />
+             </div>
+             
+             <div className="flex items-center space-x-4">
               {user ? (
                 <>
                   <span className="text-sm text-gray-300 hidden sm:inline">
@@ -228,6 +259,21 @@ const Index = () => {
           />
         </div>
 
+        {/* Mobile Search */}
+        <div className="mb-8 md:hidden">
+          <SearchBar onSearch={handleSearch} />
+        </div>
+
+        {/* Search Results Info */}
+        {searchQuery && (
+          <div className="mb-6 text-center text-gray-400">
+            Найдено {filteredArticles.length} результатов для "{searchQuery}"
+            {filteredArticles.length === 0 && (
+              <p className="mt-2">Попробуйте изменить поисковый запрос</p>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="xl:col-span-2 space-y-6">
@@ -236,19 +282,23 @@ const Index = () => {
                 <div className="animate-spin w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full mx-auto mb-4"></div>
                 <p className="text-gray-400">Загрузка новостей...</p>
               </div>
-            ) : filteredArticles.length === 0 ? (
+            ) : displayedArticles.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-gray-400 mb-4">Нет новостей в выбранной категории</p>
-                <Button 
-                  onClick={() => setSelectedCategory("Все")}
-                  variant="outline"
-                  className="border-purple-500/50 text-purple-300"
-                >
-                  Показать все новости
-                </Button>
+                <p className="text-gray-400 mb-4">
+                  {searchQuery ? 'Ничего не найдено' : 'Нет новостей в выбранной категории'}
+                </p>
+                {!searchQuery && (
+                  <Button 
+                    onClick={() => setSelectedCategory("Все")}
+                    variant="outline"
+                    className="border-purple-500/50 text-purple-300"
+                  >
+                    Показать все новости
+                  </Button>
+                )}
               </div>
             ) : (
-              filteredArticles.map((article) => (
+              displayedArticles.map((article) => (
                 <Card key={article.id} className="bg-black/40 border-purple-500/30 hover:border-purple-400/50 transition-colors">
                   <CardHeader>
                     <div className="flex justify-between items-start mb-2">
@@ -368,6 +418,7 @@ const Index = () => {
         </div>
       </div>
     </div>
+    </PullToRefresh>
   );
 };
 
