@@ -16,7 +16,11 @@ import { SearchBar } from '@/components/SearchBar';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import TrinityAvatar from '@/components/TrinityAvatar';
 import TrinityReactionResponse from '@/components/TrinityReactionResponse';
-import { Calendar, TrendingUp, Clock, User, LogOut, Settings, Headphones } from 'lucide-react';
+import AIRecommendations from '@/components/AIRecommendations';
+import SmartFeed from '@/components/SmartFeed';
+import FloatingActionButton from '@/components/FloatingActionButton';
+import ReadingProgress from '@/components/ReadingProgress';
+import { Calendar, TrendingUp, Clock, User, LogOut, Settings, Headphones, Sparkles } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
 // Mock data for podcasts
@@ -162,29 +166,31 @@ const Index = () => {
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 safe-top safe-bottom">
+      <div className="min-h-screen bg-gradient-to-br from-background via-accent to-background dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 safe-top safe-bottom transition-colors duration-300">
+        <ReadingProgress />
       {/* Header */}
-      <nav className="bg-black/30 backdrop-blur-sm border-b border-purple-500/20 sticky top-0 z-50 safe-left safe-right">
+      <nav className="glass-effect border-b border-border/50 sticky top-0 z-50 safe-left safe-right backdrop-blur-xl">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center flex-wrap gap-4">
             <div className="flex items-center space-x-8">
               <h1 
-                className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent cursor-pointer"
+                className="text-2xl font-bold bg-gradient-to-r from-primary via-accent-foreground to-secondary-foreground dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent cursor-pointer hover-lift"
                 onClick={handleLogoClick}
               >
+                <Sparkles className="inline mr-2" size={24} />
                 Trinity AI News
               </h1>
               <div className="hidden md:flex space-x-6 overflow-x-auto">
-                <Link to="/" className="text-gray-300 hover:text-white transition-colors">
+                <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors hover-lift px-3 py-2 rounded-lg">
                   Главная
                 </Link>
-                <Link to="/categories" className="text-gray-300 hover:text-white transition-colors">
+                <Link to="/categories" className="text-muted-foreground hover:text-foreground transition-colors hover-lift px-3 py-2 rounded-lg">
                   Категории
                 </Link>
-                <Link to="/podcasts" className="text-gray-300 hover:text-white transition-colors">
+                <Link to="/podcasts" className="text-muted-foreground hover:text-foreground transition-colors hover-lift px-3 py-2 rounded-lg">
                   Подкасты
                 </Link>
-                <Link to="/stats" className="text-gray-300 hover:text-white transition-colors">
+                <Link to="/stats" className="text-muted-foreground hover:text-foreground transition-colors hover-lift px-3 py-2 rounded-lg">
                   Статистика
                 </Link>
                 {showAdminAccess && userRole === 'admin' && (
@@ -246,13 +252,18 @@ const Index = () => {
         <TrinityAvatar compact={false} />
         
         {/* Hero Section */}
-        <div className="mb-8 text-center">
-          <h2 className="text-4xl font-bold text-white mb-4">
+        <div className="mb-12 text-center">
+          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6 animate-gradient bg-gradient-to-r from-primary via-secondary-foreground to-accent-foreground bg-clip-text text-transparent">
             Саркастичные обзоры мира ИИ
           </h2>
-          <p className="text-gray-400 text-lg">
+          <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
             Потому что кто-то должен говорить правду о всех этих "революционных" breakthrough'ах
           </p>
+          <div className="mt-6 flex justify-center">
+            <div className="animate-pulse">
+              <Sparkles className="text-primary" size={32} />
+            </div>
+          </div>
         </div>
 
         {/* Filter Bar */}
@@ -304,7 +315,7 @@ const Index = () => {
               </div>
             ) : (
               displayedArticles.map((article) => (
-                <Card key={article.id} className="bg-black/40 border-purple-500/30 hover:border-purple-400/50 transition-colors">
+                <Card key={article.id} className="bg-card/80 border-border/50 hover:border-primary/50 transition-all duration-300 hover-lift glass-effect mobile-card">
                   <CardHeader>
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center space-x-2">
@@ -319,13 +330,13 @@ const Index = () => {
                         <span>{new Date(article.published_at).toLocaleDateString('ru-RU')}</span>
                       </div>
                     </div>
-                    <CardTitle className="text-white hover:text-purple-300 transition-colors">
-                      <Link to={`/news/${article.id}`}>
+                    <CardTitle className="text-foreground hover:text-primary transition-colors mobile-text">
+                      <Link to={`/news/${article.id}`} className="hover-lift">
                         {article.title}
                       </Link>
                     </CardTitle>
                     {article.summary && (
-                      <p className="text-gray-300 text-sm leading-relaxed">
+                      <p className="text-muted-foreground text-sm leading-relaxed mobile-text">
                         {article.summary}
                       </p>
                     )}
@@ -365,33 +376,53 @@ const Index = () => {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* AI Recommendations */}
+            <div data-component="ai-recommendations">
+              <AIRecommendations user={user} articles={articles} />
+            </div>
+            
+            {/* Smart Feed */}
+            <div data-component="smart-feed">
+              <SmartFeed 
+                totalArticles={articles.length}
+                userReadCount={user ? Math.floor(Math.random() * 15) : 0}
+                lastReadTime={user ? new Date().toISOString() : undefined}
+              />
+            </div>
+
             {/* Stats Widget */}
             <StatsWidget />
 
             {/* Latest Podcasts */}
-            <Card className="bg-black/40 border-purple-500/30">
+            <Card className="bg-card/60 border-border/50 glass-effect hover-lift">
               <CardHeader>
-                <CardTitle className="flex items-center text-white">
-                  <Headphones className="mr-2" size={20} />
+                <CardTitle className="flex items-center text-foreground">
+                  <Headphones className="mr-2 text-primary" size={20} />
                   Последние подкасты
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {mockPodcasts.map((podcast) => (
-                    <div key={podcast.id} className="p-3 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 transition-colors cursor-pointer">
-                      <h4 className="text-white font-medium text-sm mb-1">
+                    <div key={podcast.id} className="p-4 rounded-xl bg-accent/50 hover:bg-accent/70 transition-all duration-300 cursor-pointer hover-lift border border-border/50">
+                      <h4 className="text-foreground font-medium text-sm mb-2">
                         {podcast.title}
                       </h4>
-                      <div className="flex items-center justify-between text-xs text-gray-400">
-                        <span>{podcast.duration}</span>
-                        <span>{podcast.plays} прослушиваний</span>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="flex items-center">
+                          <Clock size={12} className="mr-1" />
+                          {podcast.duration}
+                        </span>
+                        <span className="flex items-center">
+                          <Headphones size={12} className="mr-1" />
+                          {podcast.plays}
+                        </span>
                       </div>
                     </div>
                   ))}
                 </div>
                 <Link to="/podcasts">
-                  <Button variant="ghost" className="w-full mt-4 text-purple-400 hover:text-purple-300">
+                  <Button variant="ghost" className="w-full mt-4 text-primary hover:text-primary/80 hover:bg-primary/10">
                     Все подкасты
                   </Button>
                 </Link>
@@ -399,19 +430,20 @@ const Index = () => {
             </Card>
 
             {/* Trending Categories */}
-            <Card className="bg-black/40 border-purple-500/30">
+            <div data-component="trending">
+              <Card className="bg-card/60 border-border/50 glass-effect hover-lift">
               <CardHeader>
-                <CardTitle className="flex items-center text-white">
-                  <TrendingUp className="mr-2" size={20} />
+                <CardTitle className="flex items-center text-foreground">
+                  <TrendingUp className="mr-2 text-primary" size={20} />
                   Трендовые категории
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   {['Corporate Drama', 'Hype', 'Reality Check', 'Breakthrough'].map((category) => (
-                    <div key={category} className="flex items-center justify-between">
-                      <span className="text-gray-300 text-sm">{category}</span>
-                      <Badge variant="outline" className="border-purple-500/50 text-purple-300 text-xs">
+                    <div key={category} className="flex items-center justify-between p-2 rounded-lg hover:bg-accent/30 transition-colors cursor-pointer">
+                      <span className="text-foreground text-sm font-medium">{category}</span>
+                      <Badge variant="outline" className="border-primary/50 text-primary text-xs">
                         {Math.floor(Math.random() * 50) + 10}
                       </Badge>
                     </div>
@@ -419,8 +451,28 @@ const Index = () => {
                 </div>
               </CardContent>
             </Card>
+            </div>
           </div>
         </div>
+
+        {/* Floating Action Button */}
+        <FloatingActionButton
+          onAIRecommendations={() => {
+            document.querySelector('[data-component="ai-recommendations"]')?.scrollIntoView({ 
+              behavior: 'smooth' 
+            });
+          }}
+          onSmartFeed={() => {
+            document.querySelector('[data-component="smart-feed"]')?.scrollIntoView({ 
+              behavior: 'smooth' 
+            });
+          }}
+          onTrending={() => {
+            document.querySelector('[data-component="trending"]')?.scrollIntoView({ 
+              behavior: 'smooth' 
+            });
+          }}
+        />
       </div>
     </div>
     </PullToRefresh>
