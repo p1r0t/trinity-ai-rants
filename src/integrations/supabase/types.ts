@@ -179,6 +179,56 @@ export type Database = {
         }
         Relationships: []
       }
+      news_preferences: {
+        Row: {
+          api_key: string | null
+          api_provider: string
+          auto_fetch: boolean | null
+          country: string | null
+          created_at: string
+          id: string
+          language: string | null
+          preferred_categories: string[] | null
+          preferred_sources: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key?: string | null
+          api_provider?: string
+          auto_fetch?: boolean | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          preferred_categories?: string[] | null
+          preferred_sources?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string | null
+          api_provider?: string
+          auto_fetch?: boolean | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          preferred_categories?: string[] | null
+          preferred_sources?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "news_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       news_sources: {
         Row: {
           created_at: string
@@ -250,6 +300,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          api_keys: Json | null
           created_at: string
           email: string
           id: string
@@ -259,6 +310,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          api_keys?: Json | null
           created_at?: string
           email: string
           id?: string
@@ -268,6 +320,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          api_keys?: Json | null
           created_at?: string
           email?: string
           id?: string

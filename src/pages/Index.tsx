@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,7 @@ import FloatingActionButton from '@/components/FloatingActionButton';
 import ReadingProgress from '@/components/ReadingProgress';
 import Leaderboard from '@/components/Leaderboard';
 import TelegramApp from '@/components/TelegramApp';
+import NewsAPISettings from '@/components/NewsAPISettings';
 import { Calendar, TrendingUp, Clock, User, LogOut, Settings, Headphones, Sparkles } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -395,6 +396,9 @@ const Index = () => {
 
             {/* Leaderboard */}
             <Leaderboard user={user} />
+
+            {/* NewsAPI Settings */}
+            {user && <NewsAPISettings user={user} />}
 
             {/* Stats Widget */}
             <StatsWidget />

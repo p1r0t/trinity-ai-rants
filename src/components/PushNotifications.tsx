@@ -54,8 +54,8 @@ const PushNotifications = ({ user }: PushNotificationsProps) => {
         .eq('user_id', user.id)
         .single();
       
-      if (data?.notification_settings) {
-        setSettings(data.notification_settings);
+      if (data?.notification_settings && typeof data.notification_settings === 'object' && !Array.isArray(data.notification_settings)) {
+        setSettings(data.notification_settings as unknown as NotificationSettings);
       }
     } catch (error) {
       console.error('Error loading notification settings:', error);
@@ -68,7 +68,7 @@ const PushNotifications = ({ user }: PushNotificationsProps) => {
     try {
       await supabase
         .from('profiles')
-        .update({ notification_settings: newSettings })
+        .update({ notification_settings: newSettings as any })
         .eq('user_id', user.id);
       
       setSettings(newSettings);
