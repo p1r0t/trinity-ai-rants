@@ -253,6 +253,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          notification_settings: Json | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
           user_id: string
@@ -261,6 +262,7 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          notification_settings?: Json | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           user_id: string
@@ -269,8 +271,30 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          notification_settings?: Json | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          subscription: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          subscription: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          subscription?: Json
           user_id?: string
         }
         Relationships: []
