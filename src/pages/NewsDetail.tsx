@@ -1,58 +1,97 @@
-
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Calendar, User, Eye, Volume2, ArrowLeft, Play, Pause } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import AudioPlayer from '@/components/AudioPlayer';
+import { Calendar, User, ArrowLeft, Clock, Eye, Volume2, Share2 } from 'lucide-react';
 import ReactionButton from '@/components/ReactionButton';
-import TrinityAvatar from '@/components/TrinityAvatar';
-import ClickbaitButton from '@/components/ClickbaitButton';
+import AudioPlayer from '@/components/AudioPlayer';
+import ShareButton from '@/components/ShareButton';
 import VoiceSelector from '@/components/VoiceSelector';
-import { Separator } from "@/components/ui/separator";
+import TrinityAvatar from '@/components/TrinityAvatar';
+import CommentSystem from '@/components/CommentSystem';
+import Gamification from '@/components/Gamification';
+import ReadingProgress from '@/components/ReadingProgress';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 
-// Mock data - в реальном проекте будет API
-const mockNewsDetail = {
-  id: 1,
-  title: "OpenAI снова 'революционизирует' мир: GPT-5 теперь умеет делать кофе",
-  summary: "Очередной breakthrough от создателей ChatGPT. Теперь ИИ не только пишет код, но и якобы варит идеальный эспрессо. Правда, пока только в симуляции.",
-  content: `
-<p>Компания OpenAI представила новую версию своей языковой модели GPT-5, которая теперь может не только генерировать текст, но и управлять кофемашинами. По словам представителей компании, это "новый этап развития мультимодального ИИ".</p>
-
-<h3>Что умеет GPT-5</h3>
-<p>Согласно официальному релизу, новая модель способна:</p>
-<ul>
-<li>Анализировать предпочтения пользователя в кофе на основе истории переписки</li>
-<li>Оптимизировать температуру и крепость напитка в зависимости от времени суток</li>
-<li>Генерировать рецепты кофейных напитков на основе доступных ингредиентов</li>
-<li>Предсказывать настроение пользователя по голосовым командам и подбирать соответствующий вид кофе</li>
-</ul>
-
-<h3>Реальность vs. Маркетинг</h3>
-<p>Однако при ближайшем рассмотрении выяснилось, что "революционная" функция работает только в симуляции. Реальных кофемашин, интегрированных с GPT-5, пока не существует. OpenAI лишь продемонстрировала возможности модели на виртуальной кофемашине.</p>
-
-<p>Тем не менее, инвесторы уже начали скупать акции компаний-производителей кофемашин, ожидая интеграции с ИИ. Акции Nespresso выросли на 12% за день после анонса.</p>
-
-<h3>Мнение экспертов</h3>
-<p>"Это очередной пример того, как технологические компании превращают обычные функции в 'революционные прорывы'", - комментирует ведущий аналитик Tech Reality Check Джон Скептик. "Через месяц мы увидим, как каждый производитель бытовой техники будет кричать об интеграции с ИИ".</p>
-
-<p>Представители OpenAI обещают, что реальная интеграция с кофемашинами появится "в ближайшие кварталы". До тех пор нам остается довольствоваться старым добрым способом приготовления кофе - руками.</p>
-  `,
-  category: "Breakthrough",
-  author: "AI Skeptic",
-  date: "2025-01-07",
-  views: 1337,
-  reactions: { smart: 42, funny: 156, trash: 23 },
-  hasAudio: true,
-  tldr: "OpenAI научила GPT-5 варить кофе. Инвесторы в экстазе, кофемашины в панике.",
-  audioUrl: "/mock-audio.mp3"
-};
+interface Article {
+  id: string;
+  title: string;
+  content: string;
+  author: string | null;
+  published_at: string;
+  summary: string | null;
+  audio_url: string | null;
+  tags: string[] | null;
+  processed: boolean;
+}
 
 const NewsDetail = () => {
-  const { id } = useParams();
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [news] = useState(mockNewsDetail); // В реальном проекте будет загрузка из API
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [article, setArticle] = useState<Article | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [views, setViews] = useState(0);
+
+  useEffect(() => {
+    if (id) {
+      loadArticle(id);
+      recordView(id);
+    }
+    checkAuth();
+  }, [id]);
+
+  const checkAuth = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setUser(user);
+  };
+
+  const loadArticle = async (articleId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('articles')
+        .select('*')
+        .eq('id', articleId)
+        .eq('processed', true)
+        .single();
+
+      if (error) throw error;
+      
+      setArticle(data);
+      
+      // Загружаем количество просмотров
+      const { data: viewsData } = await supabase
+        .from('article_views')
+        .select('*', { count: 'exact' })
+        .eq('article_id', articleId);
+      
+      setViews(viewsData?.length || 0);
+    } catch (error) {
+      console.error('Error loading article:', error);
+      navigate('/');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const recordView = async (articleId: string) => {
+    if (!user) return;
+    
+    try {
+      await supabase
+        .from('article_views')
+        .upsert({ 
+          article_id: articleId, 
+          user_id: user.id 
+        }, { 
+          onConflict: 'article_id,user_id' 
+        });
+    } catch (error) {
+      console.error('Error recording view:', error);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ru-RU', {
@@ -62,190 +101,229 @@ const NewsDetail = () => {
     });
   };
 
-  const handleAudioToggle = () => {
-    setIsPlaying(!isPlaying);
-    // Здесь будет логика воспроизведения аудио
+  const getReadingTime = (content: string) => {
+    const wordsPerMinute = 200;
+    const wordCount = content.replace(/<[^>]*>/g, '').split(/\s+/).length;
+    return Math.ceil(wordCount / wordsPerMinute);
   };
 
-  const handleReaction = (type: 'smart' | 'funny' | 'trash') => {
-    // Здесь будет логика отправки реакции на сервер
-    console.log(`Reaction: ${type}`);
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-accent to-background dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  if (!article) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-accent to-background dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-foreground mb-4">Статья не найдена</h1>
+          <Button onClick={() => navigate('/')}>
+            <ArrowLeft className="mr-2" size={16} />
+            Вернуться на главную
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-background via-accent to-background dark:from-slate-900 dark:via-purple-900 dark:to-slate-900">
+      <ReadingProgress />
+      
       {/* Header */}
-      <header className="border-b border-purple-500/20 bg-black/30 backdrop-blur-sm sticky top-0 z-50">
+      <nav className="glass-effect border-b border-border/50 sticky top-0 z-50 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center space-x-4">
-            <Link to="/">
-              <Button variant="ghost" size="sm" className="text-purple-400 hover:text-purple-300">
-                <ArrowLeft className="mr-2" size={16} />
-                Назад
-              </Button>
-            </Link>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Trinity AI
-            </h1>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Link to="/">
+                <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 hover-lift">
+                  <ArrowLeft className="mr-2" size={16} />
+                  Назад
+                </Button>
+              </Link>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                Trinity AI News
+              </h1>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <ShareButton 
+                title={article.title}
+                text={article.summary || article.title}
+              />
+            </div>
           </div>
         </div>
-      </header>
+      </nav>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Trinity Avatar */}
-          <TrinityAvatar articleId={id} />
-          
-          {/* Article Header */}
-          <div className="mb-8">
-            <div className="flex items-center space-x-4 mb-4">
-              <Badge variant="outline" className="border-purple-500/50 text-purple-300">
-                {news.category}
-              </Badge>
-              {news.hasAudio && (
-                <Badge variant="outline" className="border-green-500/50 text-green-300 flex items-center gap-1">
-                  <Volume2 size={12} />
-                  Аудио доступно
-                </Badge>
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+          {/* Main Content */}
+          <div className="xl:col-span-3 space-y-8">
+            {/* Trinity Introduction */}
+            <TrinityAvatar compact={true} />
+            
+            {/* Article Header */}
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center gap-3">
+                {article.tags?.map((tag) => (
+                  <Badge key={tag} variant="outline" className="border-primary/50 text-primary">
+                    {tag}
+                  </Badge>
+                ))}
+                {article.audio_url && (
+                  <Badge variant="secondary" className="bg-green-500/20 text-green-300 border-green-500/50">
+                    <Volume2 size={12} className="mr-1" />
+                    Аудио доступно
+                  </Badge>
+                )}
+              </div>
+              
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">
+                {article.title}
+              </h1>
+              
+              {article.summary && (
+                <p className="text-xl text-muted-foreground leading-relaxed">
+                  {article.summary}
+                </p>
               )}
+              
+              <div className="flex flex-wrap items-center gap-6 text-muted-foreground">
+                <div className="flex items-center">
+                  <User size={16} className="mr-2" />
+                  {article.author || 'Trinity AI'}
+                </div>
+                <div className="flex items-center">
+                  <Calendar size={16} className="mr-2" />
+                  {formatDate(article.published_at)}
+                </div>
+                <div className="flex items-center">
+                  <Clock size={16} className="mr-2" />
+                  {getReadingTime(article.content)} мин чтения
+                </div>
+                <div className="flex items-center">
+                  <Eye size={16} className="mr-2" />
+                  {views} просмотров
+                </div>
+              </div>
             </div>
-            
-            <ClickbaitButton 
-              originalTitle={news.title} 
-              articleId={id || '1'} 
-            />
-            
-            <div className="flex items-center space-x-6 text-gray-400 mb-6">
-              <div className="flex items-center">
-                <User size={16} className="mr-2" />
-                {news.author}
-              </div>
-              <div className="flex items-center">
-                <Calendar size={16} className="mr-2" />
-                {formatDate(news.date)}
-              </div>
-              <div className="flex items-center">
-                <Eye size={16} className="mr-2" />
-                {news.views} просмотров
-              </div>
-            </div>
+
+            {/* Audio Player */}
+            {article.audio_url && (
+              <Card className="bg-card/80 border-border/50 glass-effect">
+                <CardContent className="pt-6">
+                  <AudioPlayer audioUrl={article.audio_url} title={article.title} />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Article Content */}
+            <Card className="bg-card/80 border-border/50 glass-effect">
+              <CardContent className="pt-6">
+                <div 
+                  className="prose prose-invert max-w-none text-foreground"
+                  style={{ 
+                    color: 'hsl(var(--foreground))',
+                    lineHeight: '1.8'
+                  }}
+                  dangerouslySetInnerHTML={{ __html: article.content }}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Reactions */}
+            <Card className="bg-card/80 border-border/50 glass-effect">
+              <CardHeader>
+                <CardTitle className="text-foreground">Ваша реакция?</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center space-x-6">
+                  <ReactionButton articleId={article.id} type="smart" user={user} />
+                  <ReactionButton articleId={article.id} type="funny" user={user} />
+                  <ReactionButton articleId={article.id} type="trash" user={user} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Comments */}
+            <CommentSystem articleId={article.id} user={user} />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-3">
-              {/* TL;DR */}
-              <Card className="bg-black/40 border-purple-500/30 mb-8">
-                <CardHeader>
-                  <CardTitle className="text-purple-300 text-lg">TL;DR</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-300">{news.tldr}</p>
-                </CardContent>
-              </Card>
-
-              {/* Audio Player */}
-              <div className="mb-8">
-                <AudioPlayer 
-                  title={`Аудиоверсия: ${news.title}`}
-                  audioUrl={news.hasAudio ? news.audioUrl : ''}
-                />
-              </div>
-
-              {/* Article Content */}
-              <Card className="bg-black/40 border-purple-500/30 mb-8">
-                <CardContent className="pt-6">
-                  <div 
-                    className="prose prose-invert prose-purple max-w-none"
-                    dangerouslySetInnerHTML={{ __html: news.content }}
-                  />
-                </CardContent>
-              </Card>
-
-              {/* Reactions */}
-              <Card className="bg-black/40 border-purple-500/30">
-                <CardHeader>
-                  <CardTitle className="text-white">Ваша реакция?</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center space-x-6">
-                    <button 
-                      onClick={() => handleReaction('smart')}
-                      className="flex flex-col items-center space-y-2 p-4 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
-                    >
-                      <span className="text-3xl">🤓</span>
-                      <span className="text-blue-400 font-medium">{news.reactions.smart}</span>
-                      <span className="text-gray-400 text-sm">Умно</span>
-                    </button>
-                    
-                    <button 
-                      onClick={() => handleReaction('funny')}
-                      className="flex flex-col items-center space-y-2 p-4 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 transition-colors"
-                    >
-                      <span className="text-3xl">😂</span>
-                      <span className="text-yellow-400 font-medium">{news.reactions.funny}</span>
-                      <span className="text-gray-400 text-sm">Смешно</span>
-                    </button>
-                    
-                    <button 
-                      onClick={() => handleReaction('trash')}
-                      className="flex flex-col items-center space-y-2 p-4 rounded-lg bg-red-500/10 hover:bg-red-500/20 transition-colors"
-                    >
-                      <span className="text-3xl">💩</span>
-                      <span className="text-red-400 font-medium">{news.reactions.trash}</span>
-                      <span className="text-gray-400 text-sm">Фигня</span>
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Voice Selector */}
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Voice Generator */}
+            {!article.audio_url && (
               <VoiceSelector 
-                articleTitle={news.title}
-                articleContent={news.content}
+                articleTitle={article.title}
+                articleContent={article.content}
               />
-              
-              {/* Related Articles */}
-              <Card className="bg-black/40 border-purple-500/30">
-                <CardHeader>
-                  <CardTitle className="text-white">Похожие статьи</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="p-3 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 transition-colors cursor-pointer">
-                        <h4 className="text-white font-medium text-sm mb-1 line-clamp-2">
-                          Еще одна "революционная" новость про ИИ #{i}
-                        </h4>
-                        <div className="text-xs text-gray-400">
-                          2 дня назад • AI Skeptic
-                        </div>
-                      </div>
-                    ))}
+            )}
+            
+            {/* Gamification */}
+            <Gamification user={user} />
+            
+            {/* Related Articles */}
+            <Card className="bg-card/80 border-border/50 glass-effect">
+              <CardHeader>
+                <CardTitle className="text-foreground">Похожие статьи</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>Скоро здесь появятся рекомендации на основе ИИ</p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-              {/* Share */}
-              <Card className="bg-black/40 border-purple-500/30">
-                <CardHeader>
-                  <CardTitle className="text-white">Поделиться</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex space-x-2">
-                    <Button variant="outline" size="sm" className="border-purple-500/50 text-purple-300">
-                      Telegram
-                    </Button>
-                    <Button variant="outline" size="sm" className="border-purple-500/50 text-purple-300">
-                      Twitter
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Share Options */}
+            <Card className="bg-card/80 border-border/50 glass-effect">
+              <CardHeader>
+                <CardTitle className="text-foreground">Поделиться</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start hover-lift"
+                  onClick={() => {
+                    const url = window.location.href;
+                    const text = `${article.title} - ${article.summary || ''}`;
+                    const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+                    window.open(telegramUrl, '_blank');
+                  }}
+                >
+                  <Share2 size={16} className="mr-2" />
+                  Telegram
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start hover-lift"
+                  onClick={() => {
+                    const url = window.location.href;
+                    const text = `${article.title}`;
+                    const twitterUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+                    window.open(twitterUrl, '_blank');
+                  }}
+                >
+                  <Share2 size={16} className="mr-2" />
+                  Twitter
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start hover-lift"
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                  }}
+                >
+                  <Share2 size={16} className="mr-2" />
+                  Копировать ссылку
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

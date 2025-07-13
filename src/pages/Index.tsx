@@ -20,6 +20,8 @@ import AIRecommendations from '@/components/AIRecommendations';
 import SmartFeed from '@/components/SmartFeed';
 import FloatingActionButton from '@/components/FloatingActionButton';
 import ReadingProgress from '@/components/ReadingProgress';
+import Leaderboard from '@/components/Leaderboard';
+import TelegramApp from '@/components/TelegramApp';
 import { Calendar, TrendingUp, Clock, User, LogOut, Settings, Headphones, Sparkles } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -165,8 +167,9 @@ const Index = () => {
     : filteredArticles.filter(article => article.tags?.includes(selectedCategory));
 
   return (
-    <PullToRefresh onRefresh={handleRefresh}>
-      <div className="min-h-screen bg-gradient-to-br from-background via-accent to-background dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 safe-top safe-bottom transition-colors duration-300">
+    <TelegramApp>
+      <PullToRefresh onRefresh={handleRefresh}>
+        <div className="min-h-screen bg-gradient-to-br from-background via-accent to-background dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 safe-top safe-bottom transition-colors duration-300">
         <ReadingProgress />
       {/* Header */}
       <nav className="glass-effect border-b border-border/50 sticky top-0 z-50 safe-left safe-right backdrop-blur-xl">
@@ -390,6 +393,9 @@ const Index = () => {
               />
             </div>
 
+            {/* Leaderboard */}
+            <Leaderboard user={user} />
+
             {/* Stats Widget */}
             <StatsWidget />
 
@@ -473,9 +479,10 @@ const Index = () => {
             });
           }}
         />
+        </div>
       </div>
-    </div>
     </PullToRefresh>
+  </TelegramApp>
   );
 };
 

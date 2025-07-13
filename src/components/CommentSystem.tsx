@@ -17,9 +17,7 @@ interface Comment {
   updated_at: string;
   user_id: string;
   article_id: string;
-  profiles?: {
-    email: string;
-  };
+  user_email?: string;
 }
 
 interface CommentSystemProps {
@@ -42,15 +40,29 @@ const CommentSystem = ({ articleId, user }: CommentSystemProps) => {
     try {
       const { data, error } = await supabase
         .from('comments')
-        .select(`
-          *,
-          profiles!inner(email)
-        `)
+        .select('*')
         .eq('article_id', articleId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setComments(data || []);
+      
+      // Добавляем email пользователей
+      const commentsWithUsers = await Promise.all(
+        (data || []).map(async (comment) => {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('user_id', comment.user_id)
+            .single();
+          
+          return {
+            ...comment,
+            user_email: profileData?.email || 'Пользователь'
+          };
+        })
+      );
+
+      setComments(commentsWithUsers);
     } catch (error) {
       console.error('Error loading comments:', error);
     }
@@ -207,7 +219,7 @@ const CommentSystem = ({ articleId, user }: CommentSystemProps) => {
                   <div className="flex items-start space-x-3">
                     <Avatar className="w-8 h-8">
                       <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                        {getUserInitials(comment.profiles?.email || 'U')}
+                        {getUserInitials(comment.user_email || 'U')}
                       </AvatarFallback>
                     </Avatar>
                     
@@ -215,7 +227,7 @@ const CommentSystem = ({ articleId, user }: CommentSystemProps) => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <span className="font-medium text-foreground text-sm">
-                            {comment.profiles?.email?.split('@')[0] || 'Пользователь'}
+                            {comment.user_email?.split('@')[0] || 'Пользователь'}
                           </span>
                           <span className="text-xs text-muted-foreground">
                             {formatDistanceToNow(new Date(comment.created_at), {

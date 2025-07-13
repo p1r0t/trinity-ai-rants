@@ -299,7 +299,7 @@ const TelegramApp = ({ children }: TelegramAppProps) => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .telegram-app {
           background: var(--tg-bg-color, var(--background));
           color: var(--tg-text-color, var(--foreground));
