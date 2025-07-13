@@ -145,11 +145,37 @@ const Auth = () => {
       }
 
       if (data.user) {
-        toast({
-          title: "Регистрация успешна!",
-          description: "Добро пожаловать в Trinity AI",
-        });
-        navigate('/');
+        if (data.user.email_confirmed_at) {
+          // Email уже подтвержден, можно войти
+          toast({
+            title: "Регистрация успешна!",
+            description: "Добро пожаловать в Trinity AI",
+          });
+          navigate('/');
+        } else {
+          // Нужно подтвердить email
+          toast({
+            title: "Регистрация успешна!",
+            description: "Проверьте email для подтверждения аккаунта. Если письмо не пришло, попробуйте войти с вашими данными.",
+          });
+          // Для быстрого тестирования можно сразу попробовать войти
+          try {
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+              email: registerData.email,
+              password: registerData.password,
+            });
+            
+            if (!signInError && signInData.user) {
+              toast({
+                title: "Добро пожаловать!",
+                description: "Вы успешно вошли в систему",
+              });
+              navigate('/');
+            }
+          } catch (signInErr) {
+            console.log('Auto sign-in failed:', signInErr);
+          }
+        }
       }
     } catch (error) {
       toast({
